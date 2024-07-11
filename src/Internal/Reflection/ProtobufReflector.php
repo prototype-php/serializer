@@ -77,8 +77,16 @@ final class ProtobufReflector
             // which starts from the number of the field itself to N, where N is the number of union variants, not counting null.
             // Don't forget to subtract 1, since range is inclusive.
             if (\is_array($propertySetter)) {
+                // How many variants union has without null.
+                $variants = $property->getType()?->allowsNull() ? \count($propertySetter) - 1 : \count($propertySetter);
+
+                // Since we're using preincrement, we've already incremented the field count,
+                // so here we subtract one to add the number of union variants. Can we rewrite this?
+                /** @psalm-var positive-int $num */
+                $num += $variants - 1;
+
                 /** @psalm-var positive-int[] */
-                $fieldNum = range($fieldNum, ($fieldNum + ($property->hasDefaultValue() ? \count($propertySetter) : \count($propertySetter) - 1)) - 1);
+                $fieldNum = range($fieldNum, $fieldNum + $variants - 1);
 
                 $propertySetter = new OneOfProperty(
                     array_combine($fieldNum, array_filter($propertySetter, static fn (PropertySetter $setter): bool => !$setter instanceof NullProperty)),
