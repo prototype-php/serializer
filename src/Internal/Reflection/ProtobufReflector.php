@@ -27,11 +27,13 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
+use Kafkiansky\Prototype\ArrayShape;
 use Kafkiansky\Prototype\Field;
 use Kafkiansky\Prototype\Internal\Type as ProtobufType;
 use Kafkiansky\Prototype\Map;
 use Kafkiansky\Prototype\Repeated;
 use Kafkiansky\Prototype\Scalar;
+use Kafkiansky\Prototype\Type;
 use Kafkiansky\Prototype\Type as NativeType;
 use Typhoon\Reflection\ClassReflection;
 use Typhoon\Reflection\PropertyReflection;
@@ -54,11 +56,12 @@ final class ProtobufReflector
         [$properties, $num] = [[], 0];
 
         foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
-            [$field, $scalarType, $listType, $mapType] = [
+            [$field, $scalarType, $listType, $mapType, $shapeType] = [
                 self::attribute($property, Field::class),
                 self::attribute($property, Scalar::class),
                 self::attribute($property, Repeated::class),
                 self::attribute($property, Map::class),
+                self::attribute($property, ArrayShape::class),
             ];
 
             /** @var PropertySetter|PropertySetter[] $propertySetter */
@@ -67,6 +70,15 @@ final class ProtobufReflector
                     self::nativeTypeToProtobufType($scalarType?->type),
                     self::nativeTypeToProtobufType($listType?->type),
                     [self::nativeTypeToProtobufType($mapType?->keyType), self::nativeTypeToProtobufType($mapType?->valueType)],
+                    null !== $shapeType
+                        ? array_merge(
+                            ...array_map(
+                                static fn (string $name, Type|string $type): array => [$name => self::nativeTypeToPropertySetter($type)],
+                                array_keys($shapeType->elements),
+                                $shapeType->elements,
+                            ),
+                        )
+                        : null,
                 ),
             );
 
@@ -119,7 +131,24 @@ final class ProtobufReflector
     }
 
     /**
-     * @return ?ProtobufType\ProtobufType<mixed>
+     * @param class-string|NativeType|null $type
+     * @return PropertySetter<mixed>
+     */
+    private static function nativeTypeToPropertySetter(null|string|NativeType $type = null): PropertySetter
+    {
+        /** @psalm-suppress ArgumentTypeCoercion Probably false positive. **/
+        return match (true) {
+            $type === null => new NullProperty(),
+            $type instanceof NativeType => new ScalarProperty(
+                self::nativeTypeToProtobufType($type),
+            ),
+            instanceOfDateTime($type) => new DateTimeProperty($type),
+            default => new MessageProperty($type),
+        };
+    }
+
+    /**
+     * @psalm-return ($type is null ? null : ProtobufType\ProtobufType<mixed>)
      */
     private static function nativeTypeToProtobufType(?NativeType $type = null): ?ProtobufType\ProtobufType
     {
@@ -131,6 +160,10 @@ final class ProtobufReflector
             NativeType::sfixed64 => new ProtobufType\FixedInt64Type(),
             NativeType::int32, NativeType::int64, NativeType::uint32, NativeType::uint64 => new ProtobufType\VaruintType(),
             NativeType::sint32, NativeType::sint64 => new ProtobufType\VarintType(),
+            NativeType::string => new ProtobufType\StringType(),
+            NativeType::float => new ProtobufType\FloatType(),
+            NativeType::double => new ProtobufType\DoubleType(),
+            NativeType::bool => new ProtobufType\BoolType(),
             default => null,
         };
     }

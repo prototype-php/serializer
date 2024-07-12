@@ -33,6 +33,7 @@ use Kafkiansky\Prototype\Internal\Type\ProtobufTypeResolver;
 use Kafkiansky\Prototype\Internal\Type\StringType;
 use Kafkiansky\Prototype\Internal\Type\ValueType;
 use Kafkiansky\Prototype\Internal\Type\VaruintType;
+use Typhoon\Type\ArrayElement;
 use Typhoon\Type\DefaultTypeVisitor;
 use Typhoon\Type\Type;
 
@@ -47,11 +48,13 @@ final class PropertySetterResolver extends DefaultTypeVisitor
 
     /**
      * @param array{?ProtobufType, ?ProtobufType} $mapType
+     * @param ?array<non-empty-string, PropertySetter<mixed>> $shapeType
      */
     public function __construct(
         private readonly ?ProtobufType $scalarType = null,
         private readonly ?ProtobufType $listType = null,
         private readonly array $mapType = [null, null],
+        private readonly ?array $shapeType = null,
     ) {
         $this->protobufTypeResolver = new ProtobufTypeResolver();
     }
@@ -69,8 +72,27 @@ final class PropertySetterResolver extends DefaultTypeVisitor
     /**
      * {@inheritdoc}
      */
-    public function array(Type $self, Type $key, Type $value, array $elements): StructProperty|MapProperty
+    public function array(Type $self, Type $key, Type $value, array $elements): StructProperty|MapProperty|ArrayShapeProperty
     {
+        if ($this->shapeType !== null) {
+            return new ArrayShapeProperty($this->shapeType);
+        }
+
+        if (\count($elements) > 0 ) {
+            return new ArrayShapeProperty(
+                array_merge(
+                    ...array_map(
+                        function (int|string $name, ArrayElement $element): array {
+                            /** @var array<non-empty-string, PropertySetter<mixed>> */
+                            return [(string) $name => $element->type->accept($this)];
+                        },
+                        array_keys($elements),
+                        $elements,
+                    ),
+                ),
+            );
+        }
+
         try {
             // Because google.protobuf.struct is a special encoded type, we cannot use the regular MapProperty.
             if ($key->accept($this->protobufTypeResolver) instanceof StringType && $value->accept($this->protobufTypeResolver) instanceof ValueType) {
@@ -92,26 +114,13 @@ final class PropertySetterResolver extends DefaultTypeVisitor
      */
     public function namedObject(Type $self, string $class, array $arguments): PropertySetter
     {
-        if (enum_exists($class)) {
-            /** @psalm-suppress ArgumentTypeCoercion **/
-            return new EnumProperty(new VaruintType(), $class);
-        } elseif (class_exists($class)) {
-            /** @psalm-suppress RiskyTruthyFalsyComparison No issue here. */
-            return match (true) {
-                \in_array(\DateTimeInterface::class, class_implements($class) ?: [], strict: true) => new DateTimeProperty(
-                    /** @var class-string<\DateTimeImmutable|\DateTime> $class */
-                    $class,
-                ),
-                default => new MessageProperty($class),
-            };
-        } elseif (interface_exists($class)) {
-            return match ($class) {
-                \DateTimeInterface::class => new DateTimeProperty(\DateTimeImmutable::class),
-                default => $this->default($self),
-            };
-        }
-
-        return $this->default($self);
+        /** @psalm-suppress ArgumentTypeCoercion **/
+        return match (true) {
+            enum_exists($class) => new EnumProperty(new VaruintType(), $class),
+            instanceOfDateTime($class) => new DateTimeProperty($class),
+            class_exists($class) => new MessageProperty($class),
+            default => $this->default($self),
+        };
     }
 
     /**

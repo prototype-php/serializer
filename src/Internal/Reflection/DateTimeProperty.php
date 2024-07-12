@@ -55,7 +55,10 @@ final class DateTimeProperty extends PropertySetter
     {
         $timestamp = $serializer->deserialize(Timestamp::class, $buffer->split($buffer->consumeVarUint()));
 
-        $time = $this->dateTimeClass::createFromFormat('U.u', sprintf('%d.%06d', $timestamp->seconds, $timestamp->nanos / 1000));
+        /** @var class-string<\DateTimeImmutable|\DateTime> $instance */
+        $instance = interface_exists($this->dateTimeClass) ? \DateTimeImmutable::class : $this->dateTimeClass;
+
+        $time = $instance::createFromFormat('U.u', sprintf('%d.%06d', $timestamp->seconds, $timestamp->nanos / 1000));
 
         if (false === $time) {
             throw new PropertyValueIsInvalid(Timestamp::class);

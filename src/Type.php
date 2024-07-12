@@ -27,7 +27,7 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype;
 
-// Type describes the more granular constraints of numeric types.
+// Type describes the more granular constraints of numeric types and others.
 // Allows you to specify types that do not exist natively or are difficult to describe in phpdoc.
 enum Type
 {
@@ -66,4 +66,16 @@ enum Type
 
     // Always four bytes.
     case sfixed64;
+
+    // A string must always contain UTF-8 encoded or 7-bit ASCII text, and cannot be longer than 2^32.
+    case string;
+
+    // Always four bytes.
+    case float;
+
+    // Always eight bytes.
+    case double;
+
+    // Uses variable-length encoding.
+    case bool;
 }

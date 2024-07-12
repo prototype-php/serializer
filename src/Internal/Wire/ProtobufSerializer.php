@@ -73,15 +73,7 @@ final class ProtobufSerializer implements Reflection\WireSerializer
 
             // Discard bytes for the unknown field.
             if (!isset($properties[$tag->num])) {
-                if ($tag->type === Type::VARINT) {
-                    $buffer->consumeVarUint();
-                } elseif ($tag->type === Type::FIXED32) {
-                    $buffer->consumeUint32();
-                } elseif ($tag->type === Type::FIXED64) {
-                    $buffer->consumeUint64();
-                } else {
-                    $buffer->consume($buffer->consumeVarUint());
-                }
+                discard($buffer, $tag);
 
                 continue;
             }
