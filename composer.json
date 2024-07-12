@@ -31,7 +31,11 @@
     "autoload": {
         "psr-4": {
             "Kafkiansky\\Prototype\\": "src/"
-        }
+        },
+        "files": [
+            "src/Internal/Wire/functions.php",
+            "src/Internal/Reflection/functions.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

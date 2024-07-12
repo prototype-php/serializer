@@ -358,3 +358,59 @@ final class Package
         );
     }
 }
+
+#[ProtobufMessage(path: 'resources/shape.bin', constructorFunction: 'new')]
+final class ArrayShapeWithPHPDoc
+{
+    /**
+     * @param array{name: string, blocked: bool, salary: float, fired: \DateTimeInterface} $info
+     */
+    public function __construct(
+        #[\Kafkiansky\Prototype\Scalar(Type::int64)]
+        public readonly int $id,
+        public readonly array $info,
+    ) {}
+
+    public static function new(): self
+    {
+        $time = \DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%d', 1720809416, 679224));
+        \assert($time instanceof \DateTimeImmutable);
+
+        return new self(
+            123,
+            [
+                'name' => 'johndoe',
+                'blocked' => true,
+                'salary' => 120000.5,
+                'fired' => $time,
+            ],
+        );
+    }
+}
+
+#[ProtobufMessage(path: 'resources/shape.bin', constructorFunction: 'new')]
+final class ArrayShapeWithAttribute
+{
+    public function __construct(
+        #[\Kafkiansky\Prototype\Scalar(Type::int64)]
+        public readonly int $id,
+        #[\Kafkiansky\Prototype\ArrayShape(['name' => Type::string, 'blocked' => Type::bool, 'salary' => Type::float, 'fired' => \DateTimeImmutable::class])]
+        public readonly array $info,
+    ) {}
+
+    public static function new(): self
+    {
+        $time = \DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%d', 1720809416, 679224));
+        \assert($time instanceof \DateTimeImmutable);
+
+        return new self(
+            123,
+            [
+                'name' => 'johndoe',
+                'blocked' => true,
+                'salary' => 120000.5,
+                'fired' => $time,
+            ],
+        );
+    }
+}
