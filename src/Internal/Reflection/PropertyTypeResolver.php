@@ -82,7 +82,19 @@ final class PropertyTypeResolver extends DefaultTypeVisitor
             /** @psalm-suppress ArgumentTypeCoercion **/
             return new EnumProperty(new VaruintType(), $class);
         } elseif (class_exists($class)) {
-            return new MessageProperty($class);
+            /** @psalm-suppress RiskyTruthyFalsyComparison No issue here. */
+            return match (true) {
+                \in_array(\DateTimeInterface::class, class_implements($class) ?: [], strict: true) => new DateTimeProperty(
+                    /** @var class-string<\DateTimeImmutable|\DateTime> $class */
+                    $class,
+                ),
+                default => new MessageProperty($class),
+            };
+        } elseif (interface_exists($class)) {
+            return match ($class) {
+                \DateTimeInterface::class => new DateTimeProperty(\DateTimeImmutable::class),
+                default => $this->default($self),
+            };
         }
 
         return $this->default($self);

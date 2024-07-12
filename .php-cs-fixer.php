@@ -48,7 +48,6 @@ $config = (new Config())
             'elements' => ['arrays', 'arguments', 'parameters'],
         ],
         'array_syntax' => ['syntax' => 'short'],
-        'date_time_immutable' => true,
         'native_constant_invocation' => true,
         'combine_consecutive_issets' => true,
         'strict_comparison' => false,
