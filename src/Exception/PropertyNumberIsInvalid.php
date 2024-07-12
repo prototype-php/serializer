@@ -25,25 +25,17 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Exception;
 
-use Kafkiansky\Binary;
 use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @template-covariant T
+ * @api
  */
-interface ProtobufType
+final class PropertyNumberIsInvalid extends \Exception implements PrototypeException
 {
-    /**
-     * @return T
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    public function read(Binary\Buffer $buffer): mixed;
-
-    /**
-     * @return T
-     */
-    public function default(): mixed;
+    public function __construct(public readonly int $propertyNumber, ?\Throwable $previous = null)
+    {
+        parent::__construct(sprintf('Property number "%d" is invalid.', $this->propertyNumber), previous: $previous);
+    }
 }

@@ -322,3 +322,39 @@ final class MessageWithDateTime
         return new self($time);
     }
 }
+
+#[ProtobufMessage(path: 'resources/struct.bin', constructorFunction: 'complex')]
+final class Package
+{
+    /**
+     * @param array<string, mixed> $options
+     */
+    public function __construct(
+        public readonly string $name,
+        public readonly array $options,
+    ) {}
+
+    public static function complex(): self
+    {
+        return new self(
+            'kafkiansky/prototype',
+            [
+                'version' => 0.1,
+                'released' => false,
+                'tags' => ['php', 'protobuf'],
+                'contributors' => [
+                    'johndoe' => [
+                        'role' => 'developer',
+                        'years' => 28.0,
+                        'male' => true,
+                        'contacts' => [
+                            'email' => 'johndoe@gmail.com',
+                        ],
+                    ],
+                ],
+                'releaseDate' => null,
+                'package' => 'prototype',
+            ],
+        );
+    }
+}

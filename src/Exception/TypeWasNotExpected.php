@@ -25,25 +25,17 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Exception;
 
-use Kafkiansky\Binary;
 use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @template-covariant T
+ * @api
  */
-interface ProtobufType
+final class TypeWasNotExpected extends \Exception implements PrototypeException
 {
-    /**
-     * @return T
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    public function read(Binary\Buffer $buffer): mixed;
-
-    /**
-     * @return T
-     */
-    public function default(): mixed;
+    public function __construct(public readonly string $type, ?\Throwable $previous = null)
+    {
+        parent::__construct(sprintf('The type "%s" was not expected.', $this->type), previous: $previous);
+    }
 }

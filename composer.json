@@ -45,7 +45,7 @@
     },
     "scripts": {
         "cs-fix": "php-cs-fixer fix --config=.php-cs-fixer.php -v --verbose --diff",
-        "psalm": "./vendor/bin/psalm --show-info --no-diff",
+        "psalm": "./vendor/bin/psalm --show-info --no-diff --no-cache",
         "test": "./vendor/bin/phpunit --testdox --do-not-cache"
     }
 }
