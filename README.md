@@ -17,6 +17,7 @@ composer require kafkiansky/prototype
 - [x] `oneof`
 - [x] `enum`
 - [x] `message (recursive)`
+- [x] `google.protobuf.Timestamp`
 
 ## Types mapping
 
