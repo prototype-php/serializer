@@ -275,17 +275,49 @@ final class Candidate
     }
 }
 
-#[ProtobufMessage(path: 'resources/timestamp.bin', constructorFunction: 'now')]
-final class Task
+#[ProtobufMessage(path: 'resources/timestamp.bin', constructorFunction: 'default')]
+final class MessageWithDateTimeInterface
 {
     public function __construct(
         public readonly ?\DateTimeInterface $scheduled = null,
     ) {}
 
-    public static function now(): self
+    public static function default(): self
     {
         $time = \DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%d', 1720761326, 237536));
         \assert($time instanceof \DateTimeImmutable);
+
+        return new self($time);
+    }
+}
+
+#[ProtobufMessage(path: 'resources/timestamp.bin', constructorFunction: 'default')]
+final class MessageWithDateTimeImmutable
+{
+    public function __construct(
+        public readonly ?\DateTimeImmutable $scheduled = null,
+    ) {}
+
+    public static function default(): self
+    {
+        $time = \DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%d', 1720761326, 237536));
+        \assert($time instanceof \DateTimeImmutable);
+
+        return new self($time);
+    }
+}
+
+#[ProtobufMessage(path: 'resources/timestamp.bin', constructorFunction: 'default')]
+final class MessageWithDateTime
+{
+    public function __construct(
+        public readonly ?\DateTime $scheduled = null,
+    ) {}
+
+    public static function default(): self
+    {
+        $time = \DateTime::createFromFormat('U.u', sprintf('%d.%d', 1720761326, 237536));
+        \assert($time instanceof \DateTime);
 
         return new self($time);
     }
