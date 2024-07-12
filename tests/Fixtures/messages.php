@@ -274,3 +274,19 @@ final class Candidate
         );
     }
 }
+
+#[ProtobufMessage(path: 'resources/timestamp.bin', constructorFunction: 'now')]
+final class Task
+{
+    public function __construct(
+        public readonly ?\DateTimeInterface $scheduled = null,
+    ) {}
+
+    public static function now(): self
+    {
+        $time = \DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%d', 1720761326, 237536));
+        \assert($time instanceof \DateTimeImmutable);
+
+        return new self($time);
+    }
+}

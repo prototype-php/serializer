@@ -44,6 +44,7 @@ final class FixtureProvider
             foreach ($attributes as $attribute) {
                 $classAttribute = $attribute->newInstance();
 
+                /** @psalm-suppress RedundantCast */
                 $messages[(string)$classAttribute->path] = [
                     $classAttribute->path,
                     [$class, $classAttribute->constructorFunction](),
