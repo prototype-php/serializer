@@ -63,7 +63,7 @@ final class ProtobufReflector
 
             /** @var PropertySetter|PropertySetter[] $propertySetter */
             $propertySetter = $property->getTyphoonType()->accept(
-                new PropertyTypeResolver(
+                new PropertySetterResolver(
                     self::nativeTypeToProtobufType($scalarType?->type),
                     self::nativeTypeToProtobufType($listType?->type),
                     [self::nativeTypeToProtobufType($mapType?->keyType), self::nativeTypeToProtobufType($mapType?->valueType)],

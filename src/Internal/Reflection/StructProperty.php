@@ -25,25 +25,38 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\PrototypeException;
+use Kafkiansky\Prototype\Internal\Type\ProtobufType;
+use Kafkiansky\Prototype\Internal\Type\ValueType;
+use Kafkiansky\Prototype\Internal\Wire\Tag;
 
 /**
- * @template-covariant T
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
+ * @template-extends PropertySetter<array<string, mixed>>
  */
-interface ProtobufType
+final class StructProperty extends PropertySetter
 {
-    /**
-     * @return T
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    public function read(Binary\Buffer $buffer): mixed;
+    /** @var ProtobufType<array<string, mixed>> */
+    private readonly ProtobufType $type;
+
+    public function __construct()
+    {
+        [$this->type, $this->value] = [
+            new ValueType(),
+            [],
+        ];
+    }
 
     /**
-     * @return T
+     * {@inheritdoc}
      */
-    public function default(): mixed;
+    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): array
+    {
+        return $this->value = $this->type->read(
+            $buffer->split($buffer->consumeVarUint()),
+        );
+    }
 }

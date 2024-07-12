@@ -66,6 +66,14 @@ final class ProtobufTypeResolver extends DefaultTypeVisitor
     /**
      * {@inheritdoc}
      */
+    public function mixed(Type $self): ValueType
+    {
+        return new ValueType();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function intRange(Type $self, ?int $min, ?int $max): IntType
     {
         if (-2147483648 === $min && 2147483647 === $max) {

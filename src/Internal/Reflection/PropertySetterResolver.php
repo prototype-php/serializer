@@ -27,8 +27,11 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
+use Kafkiansky\Prototype\Exception\TypeIsNotSupported;
 use Kafkiansky\Prototype\Internal\Type\ProtobufType;
 use Kafkiansky\Prototype\Internal\Type\ProtobufTypeResolver;
+use Kafkiansky\Prototype\Internal\Type\StringType;
+use Kafkiansky\Prototype\Internal\Type\ValueType;
 use Kafkiansky\Prototype\Internal\Type\VaruintType;
 use Typhoon\Type\DefaultTypeVisitor;
 use Typhoon\Type\Type;
@@ -38,8 +41,10 @@ use Typhoon\Type\Type;
  * @psalm-internal Kafkiansky\Prototype
  * @template-extends DefaultTypeVisitor<PropertySetter>
  */
-final class PropertyTypeResolver extends DefaultTypeVisitor
+final class PropertySetterResolver extends DefaultTypeVisitor
 {
+    private readonly ProtobufTypeResolver $protobufTypeResolver;
+
     /**
      * @param array{?ProtobufType, ?ProtobufType} $mapType
      */
@@ -47,7 +52,9 @@ final class PropertyTypeResolver extends DefaultTypeVisitor
         private readonly ?ProtobufType $scalarType = null,
         private readonly ?ProtobufType $listType = null,
         private readonly array $mapType = [null, null],
-    ) {}
+    ) {
+        $this->protobufTypeResolver = new ProtobufTypeResolver();
+    }
 
     /**
      * {@inheritdoc}
@@ -62,8 +69,15 @@ final class PropertyTypeResolver extends DefaultTypeVisitor
     /**
      * {@inheritdoc}
      */
-    public function array(Type $self, Type $key, Type $value, array $elements): MapProperty
+    public function array(Type $self, Type $key, Type $value, array $elements): StructProperty|MapProperty
     {
+        try {
+            // Because google.protobuf.struct is a special encoded type, we cannot use the regular MapProperty.
+            if ($key->accept($this->protobufTypeResolver) instanceof StringType && $value->accept($this->protobufTypeResolver) instanceof ValueType) {
+                return new StructProperty();
+            }
+        } catch (TypeIsNotSupported) {}
+
         /** @var PropertySetter<array-key> $keySetter */
         $keySetter = null !== $this->mapType[0] ? new ScalarProperty($this->mapType[0]) : $key->accept($this);
 
@@ -128,7 +142,7 @@ final class PropertyTypeResolver extends DefaultTypeVisitor
     protected function default(Type $self): PropertySetter
     {
         return new ScalarProperty(
-            $this->scalarType ?: $self->accept(new ProtobufTypeResolver()),
+            $this->scalarType ?: $self->accept($this->protobufTypeResolver),
         );
     }
 }
