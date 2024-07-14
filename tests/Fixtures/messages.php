@@ -414,3 +414,18 @@ final class ArrayShapeWithAttribute
         );
     }
 }
+
+#[ProtobufMessage(path: 'resources/duration.bin', constructorFunction: 'twoHoursAndHalf')]
+final class Interview
+{
+    public function __construct(
+        public readonly \DateInterval $duration,
+    ) {}
+
+    public static function twoHoursAndHalf(): self
+    {
+        return new self(
+            new \DateInterval('PT8400S'),
+        );
+    }
+}

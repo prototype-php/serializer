@@ -25,22 +25,36 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Prototype\Scalar;
-use Kafkiansky\Prototype\Type;
+use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
+use Kafkiansky\Prototype\Internal\Type\DurationType;
+use Kafkiansky\Prototype\Internal\Wire\Tag;
 
 /**
- * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
+ * @template-extends PropertySetter<?\DateInterval>
  */
-final class Timestamp
+final class DateIntervalProperty extends PropertySetter
 {
-    public function __construct(
-        #[Scalar(Type::int64)]
-        public readonly int $seconds,
-        #[Scalar(Type::int32)]
-        public readonly int $nanos,
-    ) {}
+    public function __construct()
+    {
+        $this->value = null;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): \DateInterval
+    {
+        $duration = $serializer->deserialize(DurationType::class, $buffer->split($buffer->consumeVarUint()));
+
+        try {
+            return $this->value = new \DateInterval(sprintf('PT%dS', $duration->seconds + $duration->nanos / 1e9));
+        } catch (\Exception $e) {
+            throw new PropertyValueIsInvalid(\DateInterval::class, $e);
+        }
+    }
 }
