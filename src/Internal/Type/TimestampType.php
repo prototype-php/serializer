@@ -25,45 +25,22 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Reflection;
+namespace Kafkiansky\Prototype\Internal\Type;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
-use Kafkiansky\Prototype\Internal\Type\TimestampType;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Scalar;
+use Kafkiansky\Prototype\Type;
 
 /**
+ * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-extends PropertySetter<?\DateTimeInterface>
  */
-final class DateTimeProperty extends PropertySetter
+final class TimestampType
 {
-    /**
-     * @param class-string<\DateTimeImmutable|\DateTime> $dateTimeClass
-     */
     public function __construct(
-        private readonly string $dateTimeClass,
-    ) {
-        $this->value = null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): \DateTimeInterface
-    {
-        $timestamp = $serializer->deserialize(TimestampType::class, $buffer->split($buffer->consumeVarUint()));
-
-        /** @var class-string<\DateTimeImmutable|\DateTime> $instance */
-        $instance = interface_exists($this->dateTimeClass) ? \DateTimeImmutable::class : $this->dateTimeClass;
-
-        $time = $instance::createFromFormat('U.u', sprintf('%d.%06d', $timestamp->seconds, $timestamp->nanos / 1000));
-
-        if (false === $time) {
-            throw new PropertyValueIsInvalid(TimestampType::class);
-        }
-
-        return $this->value = $time;
-    }
+        #[Scalar(Type::int64)]
+        public readonly int $seconds,
+        #[Scalar(Type::int32)]
+        public readonly int $nanos,
+    ) {}
 }

@@ -118,6 +118,7 @@ final class PropertySetterResolver extends DefaultTypeVisitor
         return match (true) {
             enum_exists($class) => new EnumProperty(new VaruintType(), $class),
             instanceOfDateTime($class) => new DateTimeProperty($class),
+            isClassOf($class, \DateInterval::class) => new DateIntervalProperty(),
             class_exists($class) => new MessageProperty($class),
             default => $this->default($self),
         };

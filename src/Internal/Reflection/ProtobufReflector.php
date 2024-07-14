@@ -143,6 +143,7 @@ final class ProtobufReflector
                 self::nativeTypeToProtobufType($type),
             ),
             instanceOfDateTime($type) => new DateTimeProperty($type),
+            isClassOf($type, \DateInterval::class) => new DateIntervalProperty(),
             default => new MessageProperty($type),
         };
     }
