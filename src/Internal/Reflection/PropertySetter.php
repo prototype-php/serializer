@@ -36,11 +36,8 @@ use Kafkiansky\Prototype\PrototypeException;
  */
 abstract class PropertySetter
 {
-    /**
-     * @var T
-     * @psalm-suppress MissingConstructor will be initialized in inheritors.
-     */
-    protected mixed $value;
+    /** @var ?T */
+    protected mixed $value = null;
 
     /**
      * @return T

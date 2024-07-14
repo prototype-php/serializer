@@ -35,15 +35,10 @@ use Kafkiansky\Prototype\Internal\Wire\Tag;
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-extends PropertySetter<?\DateInterval>
+ * @template-extends PropertySetter<\DateInterval>
  */
 final class DateIntervalProperty extends PropertySetter
 {
-    public function __construct()
-    {
-        $this->value = null;
-    }
-
     /**
      * {@inheritdoc}
      */

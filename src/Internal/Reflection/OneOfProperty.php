@@ -34,7 +34,7 @@ use Kafkiansky\Prototype\Internal\Wire\Tag;
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  * @template-covariant T
- * @template-extends PropertySetter<?T>
+ * @template-extends PropertySetter<T>
  */
 final class OneOfProperty extends PropertySetter
 {
