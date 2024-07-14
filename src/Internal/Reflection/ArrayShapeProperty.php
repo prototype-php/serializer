@@ -73,6 +73,7 @@ final class ArrayShapeProperty extends PropertySetter
             $this->value[$fieldName] = $this->setters[$fieldName]->readValue($buffer, $serializer, $tag);
         }
 
+        /** @var array<non-empty-string, mixed> */
         return $this->value;
     }
 

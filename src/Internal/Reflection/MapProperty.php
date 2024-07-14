@@ -73,6 +73,7 @@ final class MapProperty extends PropertySetter
             $this->value[$key] = $value;
         }
 
+        /** @var array<TKey, TValue> */
         return $this->value;
     }
 }

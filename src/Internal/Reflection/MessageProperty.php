@@ -34,7 +34,7 @@ use Kafkiansky\Prototype\Internal\Wire\Tag;
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  * @template-covariant T of object
- * @template-extends PropertySetter<?T>
+ * @template-extends PropertySetter<T>
  */
 final class MessageProperty extends PropertySetter
 {
@@ -43,14 +43,12 @@ final class MessageProperty extends PropertySetter
      */
     public function __construct(
         private readonly string $messageType,
-    ) {
-        $this->value = null;
-    }
+    ) {}
 
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): ?object
+    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): object
     {
         return $this->value = $serializer->deserialize(
             $this->messageType,
