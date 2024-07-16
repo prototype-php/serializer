@@ -47,6 +47,14 @@ final class FloatType implements ProtobufType
     /**
      * {@inheritdoc}
      */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeFloat($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function default(): float
     {
         return 0;

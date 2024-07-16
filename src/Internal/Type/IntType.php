@@ -28,7 +28,7 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 /**
- * @template-covariant T of int
+ * @template T of int
  * @template-implements ProtobufType<T>
  */
 abstract class IntType implements ProtobufType

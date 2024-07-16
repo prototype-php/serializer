@@ -47,6 +47,14 @@ final class StringType implements ProtobufType
     /**
      * {@inheritdoc}
      */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeVarUint(\strlen($value))->write($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function default(): string
     {
         return '';

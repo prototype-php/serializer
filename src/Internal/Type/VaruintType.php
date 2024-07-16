@@ -32,7 +32,7 @@ use Kafkiansky\Binary;
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @psalm-type VarUint = positive-int
+ * @psalm-type VarUint = int<0, max>
  * @template-extends IntType<VarUint>
  */
 final class VaruintType extends IntType
@@ -44,5 +44,13 @@ final class VaruintType extends IntType
     {
         /** @var VarUint */
         return $buffer->consumeVarUint();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeVarUint($value);
     }
 }

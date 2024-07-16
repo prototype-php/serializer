@@ -45,4 +45,12 @@ final class FixedInt64Type extends IntType
         /** @var FixedInt64 */
         return $buffer->consumeInt64();
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeInt64($value);
+    }
 }

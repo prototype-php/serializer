@@ -37,7 +37,9 @@ use Typhoon\Reflection\TyphoonReflector;
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  */
-final class ProtobufSerializer implements Reflection\WireSerializer
+final class ProtobufDeserializer implements
+    Reflection\WireDeserializer,
+    Reflection\WireSerializer
 {
     public function __construct(
         private readonly TyphoonReflector $classReflector,
@@ -47,9 +49,24 @@ final class ProtobufSerializer implements Reflection\WireSerializer
     /**
      * @template T of object
      * @param T $message
+     * @throws \ReflectionException
      */
     public function serialize(object $message, Binary\Buffer $buffer): void
     {
+        $class = $this->classReflector->reflectClass($message);
+
+        $properties = $this->protobufReflector->properties($class);
+
+        foreach ($properties as $num => $property) {
+            /** @psalm-suppress MixedAssignment It is ok here. */
+            $propertyValue = $property->value($message);
+
+            if ($property->isNotEmpty($propertyValue)) {
+                $tag = new Tag($num, $property->protobufType());
+                $tag->encode($buffer);
+                $property->encode($buffer, $this, $propertyValue);
+            }
+        }
     }
 
     /**

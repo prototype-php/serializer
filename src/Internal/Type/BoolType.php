@@ -47,6 +47,14 @@ final class BoolType implements ProtobufType
     /**
      * {@inheritdoc}
      */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeVarUint((int)$value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function default(): bool
     {
         return false;

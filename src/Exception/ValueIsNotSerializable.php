@@ -25,34 +25,20 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Exception;
 
-use Kafkiansky\Binary;
 use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @internal
- * @psalm-internal Kafkiansky\Prototype
- * @template T
+ * @api
  */
-interface ProtobufType
+final class ValueIsNotSerializable extends \Exception implements PrototypeException
 {
-    /**
-     * @return T
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    public function read(Binary\Buffer $buffer): mixed;
-
-    /**
-     * @param T $value
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    public function write(Binary\Buffer $buffer, mixed $value): void;
-
-    /**
-     * @return T
-     */
-    public function default(): mixed;
+    public function __construct(
+        public readonly mixed $value,
+        public readonly string $type,
+        ?\Throwable $previous = null,
+    ) {
+        parent::__construct(sprintf('The value of type "%s" is not serializable.', $this->type), previous: $previous);
+    }
 }

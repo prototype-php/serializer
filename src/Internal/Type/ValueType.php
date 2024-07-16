@@ -30,6 +30,7 @@ namespace Kafkiansky\Prototype\Internal\Type;
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\PropertyNumberIsInvalid;
 use Kafkiansky\Prototype\Exception\TypeWasNotExpected;
+use Kafkiansky\Prototype\Exception\ValueIsNotSerializable;
 use Kafkiansky\Prototype\Internal\Wire\Tag;
 use Kafkiansky\Prototype\Internal\Wire\Type;
 use Kafkiansky\Prototype\PrototypeException;
@@ -46,12 +47,12 @@ use Kafkiansky\Prototype\PrototypeException;
  */
 final class ValueType implements ProtobufType
 {
-    private const NULL_TYPE = 1;
+    private const NULL_TYPE   = 1;
     private const NUMBER_TYPE = 2;
     private const STRING_TYPE = 3;
-    private const BOOL_TYPE = 4;
+    private const BOOL_TYPE   = 4;
     private const STRUCT_TYPE = 5;
-    private const LIST_TYPE = 6;
+    private const LIST_TYPE   = 6;
 
     /**
      * @var array{
@@ -63,17 +64,39 @@ final class ValueType implements ProtobufType
      *     6: callable(Binary\Buffer): JSONValue[],
      * }
      */
-    private readonly array $types;
+    private readonly array $readers;
+
+    /**
+     * @var array{
+     *     1: callable(Binary\Buffer, null): void,
+     *     2: callable(Binary\Buffer, double): void,
+     *     3: callable(Binary\Buffer, string): void,
+     *     4: callable(Binary\Buffer, bool): void,
+     *     5: callable(Binary\Buffer, array<string, JSONValue>): void,
+     *     6: callable(Binary\Buffer, JSONValue[]): void,
+     * }
+     */
+    private readonly array $writers;
 
     public function __construct()
     {
-        $this->types = [
-            self::NULL_TYPE   => $this->readNull(...),
-            self::NUMBER_TYPE => $this->readNumber(...),
-            self::STRING_TYPE => $this->readString(...),
-            self::BOOL_TYPE   => $this->readBool(...),
-            self::STRUCT_TYPE => $this->readStruct(...),
-            self::LIST_TYPE   => $this->readList(...),
+        [$this->readers, $this->writers] = [
+            [
+                self::NULL_TYPE   => $this->readNull(...),
+                self::NUMBER_TYPE => $this->readNumber(...),
+                self::STRING_TYPE => $this->readString(...),
+                self::BOOL_TYPE   => $this->readBool(...),
+                self::STRUCT_TYPE => $this->readStruct(...),
+                self::LIST_TYPE   => $this->readList(...),
+            ],
+            [
+                self::NULL_TYPE   => $this->writeNull(...),
+                self::NUMBER_TYPE => $this->writeNumber(...),
+                self::STRING_TYPE => $this->writeString(...),
+                self::BOOL_TYPE   => $this->writeBool(...),
+                self::STRUCT_TYPE => $this->writeStruct(...),
+                self::LIST_TYPE   => $this->writeList(...),
+            ],
         ];
     }
 
@@ -109,6 +132,26 @@ final class ValueType implements ProtobufType
     /**
      * {@inheritdoc}
      */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        foreach ($value as $key => $val) {
+            $tag = new Tag(1, Type::BYTES);
+            $tag->encode($buffer);
+
+            $mapKeyValueBuffer = $buffer->split(0);
+            $mapKeyValueTag = new Tag(1, Type::BYTES);
+            $mapKeyValueTag->encode($mapKeyValueBuffer);
+
+            $mapKeyValueBuffer->writeVarUint(\strlen($key))->write($key);
+            $this->writeValue($mapKeyValueBuffer, $val);
+
+            $buffer->writeVarUint($mapKeyValueBuffer->count())->write($mapKeyValueBuffer->reset());
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function default(): array
     {
         return [];
@@ -128,12 +171,32 @@ final class ValueType implements ProtobufType
     }
 
     /**
+     * @psalm-param null $_
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeNull(Binary\Buffer $buffer, mixed $_): void
+    {
+        (new VaruintType())->write($buffer, 0);
+    }
+
+    /**
      * @throws Binary\BinaryException
      * @throws PrototypeException
      */
     private function readNumber(Binary\Buffer $buffer): float
     {
         return (new DoubleType())->read($buffer);
+    }
+
+    /**
+     * @param double $value
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeNumber(Binary\Buffer $buffer, mixed $value): void
+    {
+        (new DoubleType())->write($buffer, $value);
     }
 
     /**
@@ -149,13 +212,31 @@ final class ValueType implements ProtobufType
      * @throws Binary\BinaryException
      * @throws PrototypeException
      */
+    private function writeString(Binary\Buffer $buffer, string $value): void
+    {
+        (new StringType())->write($buffer, $value);
+    }
+
+    /**
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
     private function readBool(Binary\Buffer $buffer): bool
     {
         return (new BoolType())->read($buffer);
     }
 
     /**
-     * @return list<JSONValue>
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeBool(Binary\Buffer $buffer, bool $value): void
+    {
+        (new BoolType())->write($buffer, $value);
+    }
+
+    /**
+     * @return JSONValue[]
      * @throws Binary\BinaryException
      * @throws PrototypeException
      */
@@ -173,14 +254,32 @@ final class ValueType implements ProtobufType
     }
 
     /**
+     * @param JSONValue[] $value
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeList(Binary\Buffer $buffer, array $value): void
+    {
+        $list = $buffer->split(0);
+
+        foreach ($value as $element) {
+            $this->writeValue($list, $element);
+        }
+
+        $buffer->writeVarUint($list->count())->write($list->reset());
+    }
+
+    /**
      * @return JSONValue
      * @throws Binary\BinaryException
      * @throws PrototypeException
      */
     private function readValue(Binary\Buffer $buffer): mixed
     {
+        $type1 = Tag::decode($buffer);
+        dump($type1);
         // Tag for google.protobuf.Value. Always BYTES.
-        if (($type = Tag::decode($buffer)->type) !== Type::BYTES) {
+        if (($type = $type1->type) !== Type::BYTES) {
             throw new TypeWasNotExpected($type->name);
         }
 
@@ -193,7 +292,43 @@ final class ValueType implements ProtobufType
         }
 
         /** @var JSONValue */
-        return $this->types[$valueBufferTag->num]($valueBuffer);
+        return $this->readers[$valueBufferTag->num]($valueBuffer);
+    }
+
+    /**
+     * @param JSONValue $value
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeValue(Binary\Buffer $buffer, mixed $value): void
+    {
+        /** @psalm-suppress DocblockTypeContradiction */
+        $num = match (true) {
+            null === $value                            => self::NULL_TYPE,
+            \is_string($value)                         => self::STRING_TYPE,
+            \is_bool($value)                           => self::BOOL_TYPE,
+            \is_float($value) || \is_int($value)       => self::NUMBER_TYPE,
+            \is_array($value) && array_is_list($value) => self::LIST_TYPE,
+            \is_array($value)                          => self::STRUCT_TYPE,
+            default                                    => throw new ValueIsNotSerializable($value, get_debug_type($value)),
+        };
+
+        $keyValueTag = new Tag(2, Type::BYTES);
+        $keyValueTag->encode($buffer);
+
+        // An empty buffer for tagged value.
+        $valueBuffer = $buffer->split(0);
+
+        $valueTag = new Tag($num, match ($num) {
+            self::NULL_TYPE, self::BOOL_TYPE => Type::VARINT,
+            self::NUMBER_TYPE                => Type::FIXED64,
+            default                          => Type::BYTES,
+        });
+        $valueTag->encode($valueBuffer);
+        /** @psalm-suppress InvalidArgument It is false positive here. */
+        $this->writers[$num]($valueBuffer, $value);
+
+        $buffer->writeVarUint($valueBuffer->count())->write($valueBuffer->reset());
     }
 
     /**
@@ -206,5 +341,17 @@ final class ValueType implements ProtobufType
         return $this->read(
             $buffer->split($buffer->consumeVarUint()),
         );
+    }
+
+    /**
+     * @param array<string, JSONValue> $value
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeStruct(Binary\Buffer $buffer, array $value): void
+    {
+        $struct = $buffer->split(0);
+        $this->write($struct, $value);
+        $buffer->writeVarUint($struct->count())->write($struct->reset());
     }
 }

@@ -43,4 +43,12 @@ final class VarintType extends IntType
     {
         return $buffer->consumeVarInt();
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeVarInt($value);
+    }
 }
