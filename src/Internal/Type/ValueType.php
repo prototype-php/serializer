@@ -138,9 +138,8 @@ final class ValueType implements ProtobufType
             $tag = new Tag(1, Type::BYTES);
             $tag->encode($buffer);
 
-            $mapKeyValueBuffer = $buffer->split(0);
-            $mapKeyValueTag = new Tag(1, Type::BYTES);
-            $mapKeyValueTag->encode($mapKeyValueBuffer);
+            $mapKeyValueBuffer = $buffer->clone();
+            $tag->encode($mapKeyValueBuffer);
 
             $mapKeyValueBuffer->writeVarUint(\strlen($key))->write($key);
             $this->writeValue($mapKeyValueBuffer, $val);
@@ -260,75 +259,14 @@ final class ValueType implements ProtobufType
      */
     private function writeList(Binary\Buffer $buffer, array $value): void
     {
-        $list = $buffer->split(0);
+        $list = $buffer->clone();
 
         foreach ($value as $element) {
-            $this->writeValue($list, $element);
+            // When we are inside the list, the tag number will be 1, as specified in `google.protobuf.Struct`.
+            $this->writeValue($list, $element, 1);
         }
 
         $buffer->writeVarUint($list->count())->write($list->reset());
-    }
-
-    /**
-     * @return JSONValue
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    private function readValue(Binary\Buffer $buffer): mixed
-    {
-        $type1 = Tag::decode($buffer);
-        dump($type1);
-        // Tag for google.protobuf.Value. Always BYTES.
-        if (($type = $type1->type) !== Type::BYTES) {
-            throw new TypeWasNotExpected($type->name);
-        }
-
-        // Value as google.protobuf.Value.
-        $valueBuffer = $buffer->split($buffer->consumeVarUint());
-        $valueBufferTag = Tag::decode($valueBuffer);
-
-        if ($valueBufferTag->num > self::LIST_TYPE) {
-            throw new PropertyNumberIsInvalid($valueBufferTag->num);
-        }
-
-        /** @var JSONValue */
-        return $this->readers[$valueBufferTag->num]($valueBuffer);
-    }
-
-    /**
-     * @param JSONValue $value
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    private function writeValue(Binary\Buffer $buffer, mixed $value): void
-    {
-        /** @psalm-suppress DocblockTypeContradiction */
-        $num = match (true) {
-            null === $value                            => self::NULL_TYPE,
-            \is_string($value)                         => self::STRING_TYPE,
-            \is_bool($value)                           => self::BOOL_TYPE,
-            \is_float($value) || \is_int($value)       => self::NUMBER_TYPE,
-            \is_array($value) && array_is_list($value) => self::LIST_TYPE,
-            \is_array($value)                          => self::STRUCT_TYPE,
-            default                                    => throw new ValueIsNotSerializable($value, get_debug_type($value)),
-        };
-
-        $keyValueTag = new Tag(2, Type::BYTES);
-        $keyValueTag->encode($buffer);
-
-        // An empty buffer for tagged value.
-        $valueBuffer = $buffer->split(0);
-
-        $valueTag = new Tag($num, match ($num) {
-            self::NULL_TYPE, self::BOOL_TYPE => Type::VARINT,
-            self::NUMBER_TYPE                => Type::FIXED64,
-            default                          => Type::BYTES,
-        });
-        $valueTag->encode($valueBuffer);
-        /** @psalm-suppress InvalidArgument It is false positive here. */
-        $this->writers[$num]($valueBuffer, $value);
-
-        $buffer->writeVarUint($valueBuffer->count())->write($valueBuffer->reset());
     }
 
     /**
@@ -350,8 +288,70 @@ final class ValueType implements ProtobufType
      */
     private function writeStruct(Binary\Buffer $buffer, array $value): void
     {
-        $struct = $buffer->split(0);
+        $struct = $buffer->clone();
+
         $this->write($struct, $value);
         $buffer->writeVarUint($struct->count())->write($struct->reset());
+    }
+
+    /**
+     * @return JSONValue
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function readValue(Binary\Buffer $buffer): mixed
+    {
+        // Tag for google.protobuf.Value. Always BYTES.
+        if (($type = Tag::decode($buffer)->type) !== Type::BYTES) {
+            throw new TypeWasNotExpected($type->name);
+        }
+
+        // Value as google.protobuf.Value.
+        $valueBuffer = $buffer->split($buffer->consumeVarUint());
+        $valueBufferTag = Tag::decode($valueBuffer);
+
+        if ($valueBufferTag->num > self::LIST_TYPE) {
+            throw new PropertyNumberIsInvalid($valueBufferTag->num);
+        }
+
+        /** @var JSONValue */
+        return $this->readers[$valueBufferTag->num]($valueBuffer);
+    }
+
+    /**
+     * @param positive-int $tagNum
+     * @param JSONValue $value
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeValue(Binary\Buffer $buffer, mixed $value, int $tagNum = 2): void
+    {
+        /** @psalm-suppress DocblockTypeContradiction */
+        $num = match (true) {
+            null === $value                            => self::NULL_TYPE,
+            \is_string($value)                         => self::STRING_TYPE,
+            \is_bool($value)                           => self::BOOL_TYPE,
+            \is_float($value) || \is_int($value)       => self::NUMBER_TYPE,
+            \is_array($value) && array_is_list($value) => self::LIST_TYPE,
+            \is_array($value)                          => self::STRUCT_TYPE,
+            default                                    => throw new ValueIsNotSerializable($value, get_debug_type($value)),
+        };
+
+        $keyValueTag = new Tag($tagNum, Type::BYTES);
+        $keyValueTag->encode($buffer);
+
+        // An empty buffer for tagged value.
+        $valueBuffer = $buffer->clone();
+
+        $valueTag = new Tag($num, match ($num) {
+            self::NULL_TYPE, self::BOOL_TYPE => Type::VARINT,
+            self::NUMBER_TYPE                => Type::FIXED64,
+            default                          => Type::BYTES,
+        });
+        $valueTag->encode($valueBuffer);
+        /** @psalm-suppress InvalidArgument It is false positive here. */
+        $this->writers[$num]($valueBuffer, $value);
+
+        $buffer->writeVarUint($valueBuffer->count())->write($valueBuffer->reset());
     }
 }
