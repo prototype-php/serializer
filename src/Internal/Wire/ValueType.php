@@ -137,9 +137,8 @@ final class ValueType implements TypeReader, TypeWriter
             $tag = new Tag(1, Type::BYTES);
             $tag->encode($buffer);
 
-            $mapKeyValueBuffer = $buffer->split(0);
-            $mapKeyValueTag = new Tag(1, Type::BYTES);
-            $mapKeyValueTag->encode($mapKeyValueBuffer);
+            $mapKeyValueBuffer = $buffer->clone();
+            $tag->encode($mapKeyValueBuffer);
 
             $mapKeyValueBuffer->writeVarUint(\strlen($key))->write($key);
             $this->writeValue($mapKeyValueBuffer, $val);
@@ -264,13 +263,39 @@ final class ValueType implements TypeReader, TypeWriter
      */
     private function writeList(Binary\Buffer $buffer, array $value): void
     {
-        $list = $buffer->split(0);
+        $list = $buffer->clone();
 
         foreach ($value as $element) {
-            $this->writeValue($list, $element, 2);
+            // When we are inside the list, the tag number will be 1, as specified in `google.protobuf.Struct`.
+            $this->writeValue($list, $element, 1);
         }
 
         $buffer->writeVarUint($list->count())->write($list->reset());
+    }
+
+    /**
+     * @return array<string, JSONValue>
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function readStruct(Binary\Buffer $buffer): array
+    {
+        return $this->read(
+            $buffer->split($buffer->consumeVarUint()),
+        );
+    }
+
+    /**
+     * @param array<string, JSONValue> $value
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     */
+    private function writeStruct(Binary\Buffer $buffer, array $value): void
+    {
+        $struct = $buffer->clone();
+
+        $this->write($struct, $value);
+        $buffer->writeVarUint($struct->count())->write($struct->reset());
     }
 
     /**
@@ -298,12 +323,12 @@ final class ValueType implements TypeReader, TypeWriter
     }
 
     /**
-     * @param JSONValue $value
      * @param positive-int $tagNum
+     * @param JSONValue $value
      * @throws Binary\BinaryException
      * @throws PrototypeException
      */
-    private function writeValue(Binary\Buffer $buffer, mixed $value, int $tagNum = 1): void
+    private function writeValue(Binary\Buffer $buffer, mixed $value, int $tagNum = 2): void
     {
         /** @psalm-suppress DocblockTypeContradiction */
         $num = match (true) {
@@ -320,7 +345,7 @@ final class ValueType implements TypeReader, TypeWriter
         $keyValueTag->encode($buffer);
 
         // An empty buffer for tagged value.
-        $valueBuffer = $buffer->split(0);
+        $valueBuffer = $buffer->clone();
 
         $valueTag = new Tag($num, match ($num) {
             self::NULL_TYPE, self::BOOL_TYPE => Type::VARINT,
@@ -332,29 +357,5 @@ final class ValueType implements TypeReader, TypeWriter
         $this->writers[$num]($valueBuffer, $value);
 
         $buffer->writeVarUint($valueBuffer->count())->write($valueBuffer->reset());
-    }
-
-    /**
-     * @return array<string, JSONValue>
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    private function readStruct(Binary\Buffer $buffer): array
-    {
-        return $this->read(
-            $buffer->split($buffer->consumeVarUint()),
-        );
-    }
-
-    /**
-     * @param array<string, JSONValue> $value
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
-     */
-    private function writeStruct(Binary\Buffer $buffer, array $value): void
-    {
-        $struct = $buffer->split(0);
-        $this->write($struct, $value);
-        $buffer->writeVarUint($struct->count())->write($struct->reset());
     }
 }
