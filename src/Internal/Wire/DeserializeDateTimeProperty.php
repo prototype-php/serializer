@@ -28,21 +28,47 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-covariant T of \DateTimeInterface
+ * @template-implements PropertyDeserializer<T>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class DeserializeDateTimeProperty implements PropertyDeserializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * @psalm-param class-string<T>|interface-string<T> $dateTimeClass
+     */
+    public function __construct(
+        private readonly string $dateTimeClass,
+    ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, WireDeserializer $deserializer, Tag $tag): \DateTimeInterface
+    {
+        $timestamp = $deserializer->deserialize(TimestampType::class, $buffer->split($buffer->consumeVarUint()));
+
+        /** @var class-string<\DateTimeImmutable|\DateTime> $instance */
+        $instance = interface_exists($this->dateTimeClass) ? \DateTimeImmutable::class : $this->dateTimeClass;
+
+        $time = $instance::createFromFormat('U.u', sprintf('%d.%06d', $timestamp->seconds, $timestamp->nanos / 1000));
+
+        if (false === $time) {
+            throw new PropertyValueIsInvalid(TimestampType::class);
+        }
+
+        return $time;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return null;
     }
 }

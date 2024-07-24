@@ -32,17 +32,34 @@ use Kafkiansky\Binary;
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @psalm-import-type JSONValue from ValueType
+ * @template-implements PropertyDeserializer<\Traversable<string, JSONValue>>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class DeserializeStructProperty implements PropertyDeserializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /** @var TypeReader<array<string, JSONValue>> */
+    private readonly TypeReader $type;
+
+    public function __construct()
+    {
+        $this->type = new ValueType();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, WireDeserializer $deserializer, Tag $tag): \Traversable
+    {
+        yield from $this->type->read(
+            $buffer->split($buffer->consumeVarUint()),
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): \Traversable
+    {
+        return new \ArrayIterator();
     }
 }

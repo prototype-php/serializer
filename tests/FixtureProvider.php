@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Tests;
 
-use Kafkiansky\Prototype\Tests\Fixtures\BinFile;
 use Kafkiansky\Prototype\Tests\Fixtures\ProtobufMessage;
 
 final class FixtureProvider

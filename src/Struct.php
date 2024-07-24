@@ -31,71 +31,32 @@ use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertyDeserializer;
 use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertySerializer;
 use Kafkiansky\Prototype\Internal\TypeConverter\TypeToDeserializerConverter;
 use Kafkiansky\Prototype\Internal\TypeConverter\TypeToSerializerConverter;
-use Kafkiansky\Prototype\Internal\Wire\DeserializeArrayShapeProperty;
+use Kafkiansky\Prototype\Internal\Wire\DeserializeStructProperty;
 use Kafkiansky\Prototype\Internal\Wire\PropertyDeserializer;
 use Kafkiansky\Prototype\Internal\Wire\PropertySerializer;
-use Kafkiansky\Prototype\Internal\Wire\SerializeArrayShapeProperty;
+use Kafkiansky\Prototype\Internal\Wire\SerializeStructProperty;
 
 /**
  * @api
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class ArrayShape implements
+final class Struct implements
     ConvertToPropertyDeserializer,
     ConvertToPropertySerializer
 {
     /**
-     * @psalm-param array<non-empty-string, Type|class-string|enum-string|interface-string> $elements
-     */
-    public function __construct(
-        public readonly array $elements,
-    ) {}
-
-    /**
-     * {@inheritdoc}
+     *{@inheritdoc}
      */
     public function convertToDeserializer(TypeToDeserializerConverter $converter): PropertyDeserializer
     {
-        $deserializers =
-            /**
-             * @psalm-param array<non-empty-string, Type|class-string|enum-string|interface-string> $elements
-             * @return \Generator<non-empty-string, PropertyDeserializer>
-             */
-            static function (array $elements) use ($converter): \Generator {
-                foreach ($elements as $name => $type) {
-                    yield $name => match (true) {
-                        $type instanceof Type => $converter->protobufTypeToPropertyDeserializer($type),
-                        default => $converter->typeStringToPropertyDeserializer($type),
-                    };
-                }
-            };
-
-        return new DeserializeArrayShapeProperty(
-            iterator_to_array($deserializers($this->elements)),
-        );
+        return new DeserializeStructProperty();
     }
 
     /**
-     * {@inheritdoc}
+     *{@inheritdoc}
      */
     public function convertToSerializer(TypeToSerializerConverter $converter): PropertySerializer
     {
-        $serializers =
-            /**
-             * @psalm-param array<non-empty-string, Type|class-string|enum-string|interface-string> $elements
-             * @return \Generator<non-empty-string, PropertySerializer>
-             */
-            static function (array $elements) use ($converter): \Generator {
-                foreach ($elements as $name => $type) {
-                    yield $name => match (true) {
-                        $type instanceof Type => $converter->protobufTypeToPropertySerializer($type),
-                        default => $converter->typeStringToPropertySerializer($type),
-                    };
-                }
-            };
-
-        return new SerializeArrayShapeProperty(
-            iterator_to_array($serializers($this->elements)),
-        );
+        return new SerializeStructProperty();
     }
 }

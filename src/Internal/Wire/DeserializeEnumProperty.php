@@ -28,21 +28,45 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Exception\EnumDoesNotContainVariant;
+use Kafkiansky\Prototype\Exception\EnumDoesNotContainZeroVariant;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-covariant T of \BackedEnum
+ * @template-implements PropertyDeserializer<T>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class DeserializeEnumProperty implements PropertyDeserializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /** @var TypeReader<int<0, max>>  */
+    private readonly TypeReader $type;
+
+    /**
+     * @psalm-param enum-string<T> $enumName
+     */
+    public function __construct(
+        private readonly string $enumName,
+    ) {
+        $this->type = new VaruintType();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, WireDeserializer $deserializer, Tag $tag): \BackedEnum
+    {
+        return $this->enumName::tryFrom($variant = $this->type->read($buffer)) ?: throw new EnumDoesNotContainVariant(
+            $this->enumName,
+            $variant,
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName);
     }
 }

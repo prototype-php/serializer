@@ -25,40 +25,56 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype;
+namespace Kafkiansky\Prototype\Internal\TypeConverter;
 
-use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertyDeserializer;
-use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertySerializer;
-use Kafkiansky\Prototype\Internal\TypeConverter\TypeToDeserializerConverter;
-use Kafkiansky\Prototype\Internal\TypeConverter\TypeToSerializerConverter;
+use Kafkiansky\Prototype\Exception\TypeIsNotSupported;
+use Kafkiansky\Prototype\Internal\Reflection\Direction;
+use Kafkiansky\Prototype\Internal\Wire\DeserializeScalarProperty;
 use Kafkiansky\Prototype\Internal\Wire\PropertyDeserializer;
 use Kafkiansky\Prototype\Internal\Wire\PropertySerializer;
+use Kafkiansky\Prototype\Internal\Wire\SerializeScalarProperty;
+use Kafkiansky\Prototype\Internal\Wire\StringType;
+use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
+use function Typhoon\Type\stringify;
 
 /**
- * @api
+ * @template-extends DefaultTypeVisitor<PropertyDeserializer<array-key>>
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Scalar implements
-    ConvertToPropertyDeserializer,
-    ConvertToPropertySerializer
+final class ArrayKey extends DefaultTypeVisitor
 {
     public function __construct(
-        public readonly Type $type,
+        private readonly Direction $direction,
     ) {}
 
     /**
      * {@inheritdoc}
      */
-    public function convertToDeserializer(TypeToDeserializerConverter $converter): PropertyDeserializer
+    public function string(Type $type): PropertySerializer|PropertyDeserializer
     {
-        return $converter->protobufTypeToPropertyDeserializer($this->type);
+        return match ($this->direction) {
+            Direction::DESERIALIZE => new DeserializeScalarProperty(new StringType()),
+            Direction::SERIALIZE => new SerializeScalarProperty(new StringType()),
+        };
     }
 
     /**
      * {@inheritdoc}
      */
-    public function convertToSerializer(TypeToSerializerConverter $converter): PropertySerializer
+    public function int(Type $type, ?int $min, ?int $max): PropertyDeserializer
     {
-        return $converter->protobufTypeToPropertySerializer($this->type);
+        return match ($this->direction) {
+            Direction::DESERIALIZE => new DeserializeScalarProperty(new StringType()),
+            Direction::SERIALIZE => new SerializeScalarProperty(new StringType()),
+        };
+    }
+
+    /**
+     * @throws PrototypeException
+     */
+    protected function default(Type $type): never
+    {
+        throw new TypeIsNotSupported(stringify($type));
     }
 }

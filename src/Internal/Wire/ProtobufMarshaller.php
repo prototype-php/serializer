@@ -29,6 +29,7 @@ namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Internal\Reflection;
+use Kafkiansky\Prototype\Internal\Reflection\Direction;
 use Kafkiansky\Prototype\PrototypeException;
 use Typhoon\Reflection\TyphoonReflector;
 
@@ -37,9 +38,9 @@ use Typhoon\Reflection\TyphoonReflector;
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  */
-final class ProtobufDeserializer implements
-    Reflection\WireDeserializer,
-    Reflection\WireSerializer
+final class ProtobufMarshaller implements
+    WireSerializer,
+    WireDeserializer
 {
     public function __construct(
         private readonly TyphoonReflector $classReflector,
@@ -50,12 +51,14 @@ final class ProtobufDeserializer implements
      * @template T of object
      * @param T $message
      * @throws \ReflectionException
+     * @throws PrototypeException
+     * @throws Binary\BinaryException
      */
     public function serialize(object $message, Binary\Buffer $buffer): void
     {
-        $class = $this->classReflector->reflectClass($message);
+        $class = $this->classReflector->reflectClass($message::class);
 
-        $properties = $this->protobufReflector->properties($class);
+        $properties = $this->protobufReflector->properties($class, Direction::SERIALIZE);
 
         foreach ($properties as $num => $property) {
             /** @psalm-suppress MixedAssignment It is ok here. */
@@ -63,8 +66,15 @@ final class ProtobufDeserializer implements
 
             if ($property->isNotEmpty($propertyValue)) {
                 $tag = new Tag($num, $property->protobufType());
-                $tag->encode($buffer);
-                $property->encode($buffer, $this, $propertyValue);
+                $property->encode($propertyBuffer = $buffer->clone(), $this, $tag, $propertyValue);
+
+                if (!$propertyBuffer->isEmpty()) {
+                    if (!is_iterable($propertyValue)) {
+                        $tag->encode($buffer);
+                    }
+
+                    $buffer->write($propertyBuffer->reset());
+                }
             }
         }
     }
@@ -81,9 +91,12 @@ final class ProtobufDeserializer implements
     {
         $class = $this->classReflector->reflectClass($messageType);
 
-        $object = $class->newInstanceWithoutConstructor();
+        $object = $class->toNativeReflection()->newInstanceWithoutConstructor();
 
-        $properties = $this->protobufReflector->properties($class);
+        $properties = $this->protobufReflector->properties($class, Direction::DESERIALIZE);
+
+        /** @psalm-var \WeakMap<Reflection\PropertyDeserializeDescriptor, ValueContext> $values */
+        $values = new \WeakMap();
 
         while (!$buffer->isEmpty()) {
             $tag = Tag::decode($buffer);
@@ -95,12 +108,23 @@ final class ProtobufDeserializer implements
                 continue;
             }
 
-            $properties[$tag->num]->readValue($buffer, $this, $tag);
+            $property = $properties[$tag->num];
+            $values[$property] ??= new ValueContext();
+            /** @psalm-suppress MixedArgument */
+            $values[$property]->setValue($property->readValue($buffer, $this, $tag));
         }
 
+        foreach ($values as $property => $propertyValue) {
+            $property->setValue($object, $propertyValue->getValue());
+        }
+
+        // Additional cycle to set default values.
+        // We could do it in one loop, but we have unions that refer to the same `\ReflectionProperty`,
+        // and if the required unit variant serialized in the protobuf is not the first one in the schema,
+        // we will set it to a default value (which is null), which we cannot change later for `readonly` properties.
         foreach ($properties as $property) {
             if (!$property->isInitialized($object)) {
-                $property->setValue($object);
+                $property->setValue($object, $property->default());
             }
         }
 

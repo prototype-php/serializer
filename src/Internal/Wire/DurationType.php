@@ -27,22 +27,20 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Wire;
 
-use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Scalar;
+use Kafkiansky\Prototype\Type;
 
 /**
+ * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class DurationType
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
-    }
+    public function __construct(
+        #[Scalar(Type::int64)]
+        public readonly int $seconds,
+        #[Scalar(Type::int32)]
+        public readonly int $nanos,
+    ) {}
 }

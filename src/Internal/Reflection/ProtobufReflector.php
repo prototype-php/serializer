@@ -27,17 +27,24 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Prototype\ArrayShape;
+use Kafkiansky\Prototype\Exception\TooManyPropertyAttributes;
 use Kafkiansky\Prototype\Field;
-use Kafkiansky\Prototype\Internal\Type as ProtobufType;
-use Kafkiansky\Prototype\Map;
-use Kafkiansky\Prototype\Repeated;
-use Kafkiansky\Prototype\Scalar;
-use Kafkiansky\Prototype\Type;
-use Kafkiansky\Prototype\Type as NativeType;
+use Kafkiansky\Prototype\Internal;
+use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertyDeserializer;
+use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertySerializer;
+use Kafkiansky\Prototype\Internal\TypeConverter\NativeTypeToPropertyMarshallerConverter;
+use Kafkiansky\Prototype\Internal\TypeConverter\TypeToDeserializerConverter;
+use Kafkiansky\Prototype\Internal\TypeConverter\TypeToSerializerConverter;
+use Kafkiansky\Prototype\Internal\Wire\DeserializeUnionProperty;
+use Kafkiansky\Prototype\Internal\Wire\PropertyDeserializer;
+use Kafkiansky\Prototype\Internal\Wire\PropertySerializer;
+use Kafkiansky\Prototype\Internal\Wire\SerializeUnionProperty;
+use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\DeclarationId\AnonymousClassId;
+use Typhoon\DeclarationId\NamedClassId;
+use Typhoon\Reflection\AttributeReflection;
 use Typhoon\Reflection\ClassReflection;
 use Typhoon\Reflection\PropertyReflection;
-use Kafkiansky\Prototype\Internal;
 
 /**
  * @api
@@ -46,51 +53,77 @@ use Kafkiansky\Prototype\Internal;
  */
 final class ProtobufReflector
 {
+    private readonly TypeToDeserializerConverter $typeToDeserializerConverter;
+    private readonly TypeToSerializerConverter $typeToSerializerConverter;
+
+    public function __construct()
+    {
+        $this->typeToDeserializerConverter = new TypeToDeserializerConverter();
+        $this->typeToSerializerConverter = new TypeToSerializerConverter();
+    }
+
     /**
      * @template T of object
-     * @param ClassReflection<T> $class
-     * @return array<positive-int, PropertyDescriptor>
+     * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
+     * @param Direction $direction
+     * @psalm-return array<positive-int, $direction is Direction::DESERIALIZE ? PropertyDeserializeDescriptor : PropertySerializeDescriptor>
+     * @throws PrototypeException
      */
-    public function properties(ClassReflection $class): array
+    public function properties(ClassReflection $class, Direction $direction): array
     {
         [$properties, $num] = [[], 0];
 
-        foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
-            [$field, $scalarType, $listType, $mapType, $shapeType] = [
-                self::attribute($property, Field::class),
-                self::attribute($property, Scalar::class),
-                self::attribute($property, Repeated::class),
-                self::attribute($property, Map::class),
-                self::attribute($property, ArrayShape::class),
-            ];
+        $classProperties = $class
+            ->properties()
+            ->filter(static fn (PropertyReflection $property): bool => $property->isPublic() && !$property->isStatic())
+        ;
 
-            /** @var PropertySetter|PropertySetter[] $propertySetter */
-            $propertySetter = $property->getTyphoonType()->accept(
-                new PropertySetterResolver(
-                    self::nativeTypeToProtobufType($scalarType?->type),
-                    self::nativeTypeToProtobufType($listType?->type),
-                    [self::nativeTypeToProtobufType($mapType?->keyType), self::nativeTypeToProtobufType($mapType?->valueType)],
-                    null !== $shapeType
-                        ? array_merge(
-                            ...array_map(
-                                static fn (string $name, Type|string $type): array => [$name => self::nativeTypeToPropertySetter($type)],
-                                array_keys($shapeType->elements),
-                                $shapeType->elements,
-                            ),
-                        )
-                        : null,
-                ),
-            );
+        foreach ($classProperties as $property) {
+            /** @var list<ConvertToPropertySerializer|ConvertToPropertyDeserializer> $propertyMarshallers */
+            $propertyMarshallers = $property
+                ->attributes()
+                ->filter(static fn (AttributeReflection $attribute): bool => $attribute->class()->isInstanceOf(match ($direction) {
+                    Direction::DESERIALIZE => ConvertToPropertyDeserializer::class,
+                    Direction::SERIALIZE => ConvertToPropertySerializer::class,
+                }))
+                ->map(static fn (AttributeReflection $attribute): object => $attribute->newInstance())
+            ;
+
+            if (\count($propertyMarshallers) > 1) {
+                throw new TooManyPropertyAttributes($property->id->toString(), \count($propertyMarshallers));
+            }
+
+            /** @var ?Field $field */
+            $field = $property
+                ->attributes()
+                ->filter(static fn (AttributeReflection $attribute): bool => $attribute->class()->isInstanceOf(Field::class))
+                ->map(static fn (AttributeReflection $attribute): object => $attribute->newInstance())
+                ->toList()[0] ?? null
+            ;
+
+            /** @var PropertyDeserializer|PropertySerializer|list<PropertyDeserializer|PropertySerializer> $propertyMarshaller */
+            $propertyMarshaller = \count($propertyMarshallers) > 0
+                ? match ($direction) {
+                    Direction::DESERIALIZE => $propertyMarshallers[0]->convertToDeserializer($this->typeToDeserializerConverter),
+                    Direction::SERIALIZE => $propertyMarshallers[0]->convertToSerializer($this->typeToSerializerConverter),
+                }
+                : $property->type()->accept(new NativeTypeToPropertyMarshallerConverter($direction))
+            ;
 
             $fieldNum = $field?->num ?: ++$num;
+
+            // Special case for `?Type` and `true|false` because it's not a true union for protobuf.
+            if (\is_array($propertyMarshaller) && \count($propertyMarshaller) === 1) {
+                $propertyMarshaller = $propertyMarshaller[0];
+            }
 
             // The oneof variants are passed as different fields of the protobuf message.
             // Since php has unions, we can combine different fields under one setter by artificially giving them some order,
             // which starts from the number of the field itself to N, where N is the number of union variants, not counting null.
             // Don't forget to subtract 1, since range is inclusive.
-            if (\is_array($propertySetter)) {
-                // How many variants union has without null.
-                $variants = $property->getType()?->allowsNull() ? \count($propertySetter) - 1 : \count($propertySetter);
+            if (\is_array($propertyMarshaller)) {
+                // How many variants union has.
+                $variants = \count($propertyMarshaller);
 
                 // Since we're using preincrement, we've already incremented the field count,
                 // so here we subtract one to add the number of union variants. Can we rewrite this?
@@ -100,10 +133,10 @@ final class ProtobufReflector
                 /** @psalm-var positive-int[] */
                 $fieldNum = range($fieldNum, $fieldNum + $variants - 1);
 
-                $propertySetter = new OneOfProperty(
-                    array_combine($fieldNum, array_filter($propertySetter, static fn (PropertySetter $setter): bool => !$setter instanceof NullProperty)),
-                    $property->hasDefaultValue() ? $property->getDefaultValue() : null,
-                );
+                $propertyMarshaller = match ($direction) {
+                    Direction::DESERIALIZE => new DeserializeUnionProperty(array_combine($fieldNum, $propertyMarshaller)),
+                    Direction::SERIALIZE => new SerializeUnionProperty([]),
+                };
             }
 
             if (!\is_array($fieldNum)) {
@@ -111,61 +144,13 @@ final class ProtobufReflector
             }
 
             foreach ($fieldNum as $n) {
-                $properties[$n] = new PropertyDescriptor($property, $propertySetter);
+                $properties[$n] = match ($direction) {
+                    Direction::DESERIALIZE => new PropertyDeserializeDescriptor($property->toNativeReflection(), $propertyMarshaller),
+                    Direction::SERIALIZE => new PropertySerializeDescriptor($property->toNativeReflection(), $propertyMarshaller),
+                };
             }
         }
 
         return $properties;
-    }
-
-    /**
-     * @template TClass of object
-     * @param class-string<TClass> $attributeClass
-     * @return ?TClass
-     */
-    private static function attribute(PropertyReflection $property, string $attributeClass): ?object
-    {
-        $attributes = $property->getAttributes($attributeClass);
-
-        return \count($attributes) > 0 ? $attributes[0]->newInstance() : null;
-    }
-
-    /**
-     * @param class-string|NativeType|null $type
-     * @return PropertySetter<mixed>
-     */
-    private static function nativeTypeToPropertySetter(null|string|NativeType $type = null): PropertySetter
-    {
-        /** @psalm-suppress ArgumentTypeCoercion Probably false positive. **/
-        return match (true) {
-            $type === null => new NullProperty(),
-            $type instanceof NativeType => new ScalarProperty(
-                self::nativeTypeToProtobufType($type),
-            ),
-            instanceOfDateTime($type) => new DateTimeProperty($type),
-            isClassOf($type, \DateInterval::class) => new DateIntervalProperty(),
-            default => new MessageProperty($type),
-        };
-    }
-
-    /**
-     * @psalm-return ($type is null ? null : ProtobufType\ProtobufType<mixed>)
-     */
-    private static function nativeTypeToProtobufType(?NativeType $type = null): ?ProtobufType\ProtobufType
-    {
-        /** @var ?ProtobufType\ProtobufType<mixed> */
-        return match ($type) {
-            NativeType::fixed32 => new ProtobufType\FixedUint32Type(),
-            NativeType::fixed64 => new ProtobufType\FixedUint64Type(),
-            NativeType::sfixed32 => new ProtobufType\FixedInt32Type(),
-            NativeType::sfixed64 => new ProtobufType\FixedInt64Type(),
-            NativeType::int32, NativeType::int64, NativeType::uint32, NativeType::uint64 => new ProtobufType\VaruintType(),
-            NativeType::sint32, NativeType::sint64 => new ProtobufType\VarintType(),
-            NativeType::string => new ProtobufType\StringType(),
-            NativeType::float => new ProtobufType\FloatType(),
-            NativeType::double => new ProtobufType\DoubleType(),
-            NativeType::bool => new ProtobufType\BoolType(),
-            default => null,
-        };
     }
 }

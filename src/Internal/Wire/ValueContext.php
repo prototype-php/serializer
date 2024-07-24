@@ -27,22 +27,36 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Wire;
 
-use Kafkiansky\Binary;
-
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @psalm-type ValueType = scalar|object|array|null
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class ValueContext
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /** @var ValueType  */
+    private mixed $value = null;
+
+    /**
+     * @param ValueType|\Traversable $value
+     */
+    public function setValue(mixed $value): void
+    {
+        if ($value instanceof \Traversable) {
+            $value = iterator_to_array($value);
+        }
+
+        $this->value = match (true) {
+            \is_array($value) => array_merge(!\is_array($this->value) ? [] : $this->value, $value),
+            default => $value,
+        };
+    }
+
+    /**
+     * @return ValueType
+     */
+    public function getValue(): mixed
+    {
+        return $this->value;
     }
 }

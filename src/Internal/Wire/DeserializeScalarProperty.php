@@ -32,17 +32,31 @@ use Kafkiansky\Binary;
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-covariant T
+ * @template-implements PropertyDeserializer<T>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class DeserializeScalarProperty implements PropertyDeserializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * @param TypeReader<T> $type
+     */
+    public function __construct(
+        private readonly TypeReader $type,
+    ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, WireDeserializer $deserializer, Tag $tag): mixed
+    {
+        return $this->type->read($buffer);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return $this->type->default();
     }
 }

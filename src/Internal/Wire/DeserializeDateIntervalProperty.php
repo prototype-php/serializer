@@ -28,21 +28,34 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-implements PropertyDeserializer<\DateInterval>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class DeserializeDateIntervalProperty implements PropertyDeserializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, WireDeserializer $deserializer, Tag $tag): \DateInterval
+    {
+        $duration = $deserializer->deserialize(DurationType::class, $buffer->split($buffer->consumeVarUint()));
+
+        try {
+            return new \DateInterval(sprintf('PT%dS', $duration->seconds + $duration->nanos / 1e9));
+        } catch (\Throwable $e) {
+            throw new PropertyValueIsInvalid(\DateInterval::class, $e);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return null;
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Tests\Fixtures;
 
+use Kafkiansky\Prototype\ArrayShape;
 use Kafkiansky\Prototype\Field;
 use Kafkiansky\Prototype\Scalar;
 use Kafkiansky\Prototype\Type;
@@ -214,6 +215,8 @@ final class Job
 }
 
 #[ProtobufMessage(path: 'resources/candidate.bin', constructorFunction: 'default')]
+#[ProtobufMessage(path: 'resources/candidate_with_email.bin', constructorFunction: 'withEmail')]
+#[ProtobufMessage(path: 'resources/candidate_without_contact.bin', constructorFunction: 'withoutContact')]
 final class Candidate
 {
     /**
@@ -257,6 +260,90 @@ final class Candidate
                 new PhoneNumber(PhoneType::HOME, '555-5678'),
             ],
             new Skype('john.doe.skype'),
+            [
+                new Job(
+                    title: 'Software Engineer',
+                    company: 'TechCorp',
+                    startDate: '2015-06-01',
+                    endDate: '2018-08-15',
+                ),
+                new Job(
+                    title: 'Senior Developer',
+                    company: 'DevCompany',
+                    startDate: '2018-09-01',
+                    endDate: '2021-12-31',
+                ),
+            ],
+        );
+    }
+
+    public static function withEmail(): self
+    {
+        return new self(
+            1,
+            'John Doe',
+            'john.doe@example.com',
+            [
+                'home' => new Address(
+                    street: '123 Main St',
+                    city: 'Hometown',
+                    state: 'CA',
+                    zipCode: '12345',
+                ),
+                'work' => new Address(
+                    street: '456 Business Rd',
+                    city: 'Big City',
+                    state: 'NY',
+                    zipCode: '67890',
+                ),
+            ],
+            [
+                new PhoneNumber(PhoneType::MOBILE, '555-1234'),
+                new PhoneNumber(PhoneType::HOME, '555-5678'),
+            ],
+            new Email('johndoe@work.com'),
+            [
+                new Job(
+                    title: 'Software Engineer',
+                    company: 'TechCorp',
+                    startDate: '2015-06-01',
+                    endDate: '2018-08-15',
+                ),
+                new Job(
+                    title: 'Senior Developer',
+                    company: 'DevCompany',
+                    startDate: '2018-09-01',
+                    endDate: '2021-12-31',
+                ),
+            ],
+        );
+    }
+
+    public static function withoutContact(): self
+    {
+        return new self(
+            1,
+            'John Doe',
+            'john.doe@example.com',
+            [
+                'home' => new Address(
+                    street: '123 Main St',
+                    city: 'Hometown',
+                    state: 'CA',
+                    zipCode: '12345',
+                ),
+                'work' => new Address(
+                    street: '456 Business Rd',
+                    city: 'Big City',
+                    state: 'NY',
+                    zipCode: '67890',
+                ),
+            ],
+            [
+                new PhoneNumber(PhoneType::MOBILE, '555-1234'),
+                new PhoneNumber(PhoneType::HOME, '555-5678'),
+            ],
+            null,
             [
                 new Job(
                     title: 'Software Engineer',
@@ -366,7 +453,7 @@ final class ArrayShapeWithPHPDoc
      * @param array{name: string, blocked: bool, salary: float, fired: \DateTimeInterface} $info
      */
     public function __construct(
-        #[\Kafkiansky\Prototype\Scalar(Type::int64)]
+        #[Scalar(Type::int64)]
         public readonly int $id,
         public readonly array $info,
     ) {}
@@ -392,9 +479,9 @@ final class ArrayShapeWithPHPDoc
 final class ArrayShapeWithAttribute
 {
     public function __construct(
-        #[\Kafkiansky\Prototype\Scalar(Type::int64)]
+        #[Scalar(Type::int64)]
         public readonly int $id,
-        #[\Kafkiansky\Prototype\ArrayShape(['name' => Type::string, 'blocked' => Type::bool, 'salary' => Type::float, 'fired' => \DateTimeImmutable::class])]
+        #[ArrayShape(['name' => Type::string, 'blocked' => Type::bool, 'salary' => Type::float, 'fired' => \DateTimeImmutable::class])]
         public readonly array $info,
     ) {}
 

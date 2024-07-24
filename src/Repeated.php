@@ -27,13 +27,49 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype;
 
+use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertyDeserializer;
+use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertySerializer;
+use Kafkiansky\Prototype\Internal\TypeConverter\TypeToDeserializerConverter;
+use Kafkiansky\Prototype\Internal\TypeConverter\TypeToSerializerConverter;
+use Kafkiansky\Prototype\Internal\Wire\DeserializeArrayProperty;
+use Kafkiansky\Prototype\Internal\Wire\PropertyDeserializer;
+use Kafkiansky\Prototype\Internal\Wire\PropertySerializer;
+use Kafkiansky\Prototype\Internal\Wire\SerializeArrayProperty;
+
 /**
  * @api
  */
 #[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Repeated
+final class Repeated implements
+    ConvertToPropertyDeserializer,
+    ConvertToPropertySerializer
 {
+    /**
+     * @psalm-param Type|class-string|enum-string|interface-string $type
+     */
     public function __construct(
-        public readonly Type $type,
+        public readonly Type|string $type,
     ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function convertToDeserializer(TypeToDeserializerConverter $converter): PropertyDeserializer
+    {
+        return new DeserializeArrayProperty(match (true) {
+            $this->type instanceof Type => $converter->protobufTypeToPropertyDeserializer($this->type),
+            default => $converter->typeStringToPropertyDeserializer($this->type),
+        });
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function convertToSerializer(TypeToSerializerConverter $converter): PropertySerializer
+    {
+        return new SerializeArrayProperty(match (true) {
+            $this->type instanceof Type => $converter->protobufTypeToPropertySerializer($this->type),
+            default => $converter->typeStringToPropertySerializer($this->type),
+        });
+    }
 }

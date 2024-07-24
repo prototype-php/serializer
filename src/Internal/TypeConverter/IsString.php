@@ -25,24 +25,29 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Wire;
+namespace Kafkiansky\Prototype\Internal\TypeConverter;
 
-use Kafkiansky\Binary;
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
 
 /**
- * @internal
- * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-extends DefaultTypeVisitor<bool>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class IsString extends DefaultTypeVisitor
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * {@inheritdoc}
+     */
+    public function string(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function default(Type $type): bool
+    {
+        return false;
     }
 }

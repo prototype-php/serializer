@@ -29,25 +29,25 @@ namespace Kafkiansky\Prototype\Tests\Type;
 
 use Kafkiansky\Binary\Buffer;
 use Kafkiansky\Binary\Endianness;
-use Kafkiansky\Prototype\Internal\Type;
+use Kafkiansky\Prototype\Internal\Wire\TypeReader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-#[CoversClass(Type\BoolType::class)]
-#[CoversClass(Type\FloatType::class)]
-#[CoversClass(Type\DoubleType::class)]
-#[CoversClass(Type\FixedInt32Type::class)]
-#[CoversClass(Type\FixedUint32Type::class)]
-#[CoversClass(Type\FixedInt64Type::class)]
-#[CoversClass(Type\FixedUint64Type::class)]
-#[CoversClass(Type\StringType::class)]
-#[CoversClass(Type\VarintType::class)]
-#[CoversClass(Type\VaruintType::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\BoolType::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\FloatType::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\DoubleType::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\FixedInt32Type::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\FixedUint32Type::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\FixedInt64Type::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\FixedUint64Type::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\StringType::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\VarintType::class)]
+#[CoversClass(\Kafkiansky\Prototype\Internal\Wire\VaruintType::class)]
 final class TypeTest extends TestCase
 {
     /**
-     * @return iterable<array-key, array{callable(Buffer): void, Type\ProtobufType, mixed}>
+     * @return iterable<array-key, array{callable(Buffer): void, \Kafkiansky\Prototype\Internal\Wire\TypeReader, mixed}>
      */
     public static function fixtures(): iterable
     {
@@ -55,7 +55,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeVarUint(1);
             },
-            new Type\BoolType(),
+            new \Kafkiansky\Prototype\Internal\Wire\BoolType(),
             true,
         ];
 
@@ -63,7 +63,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeVarUint(0);
             },
-            new Type\BoolType(),
+            new \Kafkiansky\Prototype\Internal\Wire\BoolType(),
             false,
         ];
 
@@ -71,7 +71,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeVarUint(100);
             },
-            new Type\VaruintType(),
+            new \Kafkiansky\Prototype\Internal\Wire\VaruintType(),
             100,
         ];
 
@@ -79,7 +79,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeVarInt(-1024);
             },
-            new Type\VarintType(),
+            new \Kafkiansky\Prototype\Internal\Wire\VarintType(),
             -1024,
         ];
 
@@ -87,7 +87,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeFloat(2.5);
             },
-            new Type\FloatType(),
+            new \Kafkiansky\Prototype\Internal\Wire\FloatType(),
             2.5,
         ];
 
@@ -95,7 +95,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeDouble(10.25);
             },
-            new Type\DoubleType(),
+            new \Kafkiansky\Prototype\Internal\Wire\DoubleType(),
             10.25,
         ];
 
@@ -103,7 +103,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeVarUint(\strlen('String'))->write('String');
             },
-            new Type\StringType(),
+            new \Kafkiansky\Prototype\Internal\Wire\StringType(),
             'String',
         ];
 
@@ -111,7 +111,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeUint32(200);
             },
-            new Type\FixedUint32Type(),
+            new \Kafkiansky\Prototype\Internal\Wire\FixedUint32Type(),
             200,
         ];
 
@@ -119,7 +119,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeInt32(-200);
             },
-            new Type\FixedInt32Type(),
+            new \Kafkiansky\Prototype\Internal\Wire\FixedInt32Type(),
             -200,
         ];
 
@@ -127,7 +127,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeUint64(2048);
             },
-            new Type\FixedUint64Type(),
+            new \Kafkiansky\Prototype\Internal\Wire\FixedUint64Type(),
             2048,
         ];
 
@@ -135,7 +135,7 @@ final class TypeTest extends TestCase
             static function (Buffer $buffer): void {
                 $buffer->writeInt64(-2048);
             },
-            new Type\FixedInt64Type(),
+            new \Kafkiansky\Prototype\Internal\Wire\FixedInt64Type(),
             -2048,
         ];
     }
@@ -143,10 +143,10 @@ final class TypeTest extends TestCase
     /**
      * @template T
      * @param callable(Buffer): void $writeToBuffer
-     * @param Type\ProtobufType<T> $type
+     * @param TypeReader<T> $type
      */
     #[DataProvider('fixtures')]
-    public function testTypeRead(callable $writeToBuffer, Type\ProtobufType $type, mixed $value): void
+    public function testTypeRead(callable $writeToBuffer, TypeReader $type, mixed $value): void
     {
         $buffer = Buffer::empty(Endianness::little());
         $writeToBuffer($buffer);

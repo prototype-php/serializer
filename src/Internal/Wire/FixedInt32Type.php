@@ -32,17 +32,30 @@ use Kafkiansky\Binary;
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @psalm-type FixedInt32 = int<-2147483648, 2147483647>
+ * @template-extends IntType<FixedInt32>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class FixedInt32Type extends IntType
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * {@inheritdoc}
+     */
+    public function read(Binary\Buffer $buffer): int
+    {
+        /** @var FixedInt32 */
+        return $buffer->consumeInt32();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeInt32($value);
+    }
+
+    public function wireType(): Type
+    {
+        return Type::FIXED32;
     }
 }

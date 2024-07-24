@@ -27,22 +27,19 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Wire;
 
-use Kafkiansky\Binary;
-
 /**
- * @internal
- * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template T of int
+ * @template-implements TypeReader<T>
+ * @template-implements TypeWriter<T>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+abstract class IntType implements TypeReader, TypeWriter
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * {@inheritdoc}
+     */
+    final public function default(): int
+    {
+        /** @var T  */
+        return 0;
     }
 }

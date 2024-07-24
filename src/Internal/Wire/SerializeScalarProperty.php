@@ -28,21 +28,46 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template T of mixed
+ * @template-implements PropertySerializer<T>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class SerializeScalarProperty implements PropertySerializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * @param TypeWriter<T> $type
+     */
+    public function __construct(
+        private readonly TypeWriter $type,
+    ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        /** @psalm-suppress DocblockTypeContradiction */
+        return 0 === $value
+            || 0.0 === $value
+            || false === $value
+            || '' === $value
+            ;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, WireSerializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $this->type->write($buffer, $value);
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return $this->type->wireType();
     }
 }

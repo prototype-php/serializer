@@ -30,4 +30,13 @@ final class SerializerTest extends TestCase
         self::assertEquals($message, $serializer->deserialize($buffer, $message::class));
         self::assertTrue($buffer->isEmpty());
     }
+
+    #[DataProviderExternal(FixtureProvider::class, 'messages')]
+    public function testSerialize(string $_, object $message): void
+    {
+        $serializer = new Serializer();
+        $buffer = $serializer->serialize($message);
+        self::assertEquals($message, $serializer->deserialize($buffer, $message::class));
+        self::assertTrue($buffer->isEmpty());
+    }
 }

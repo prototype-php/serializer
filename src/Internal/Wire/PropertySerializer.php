@@ -28,21 +28,27 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @internal
- * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template T
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+interface PropertySerializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
-    }
+    /**
+     * @param T $value
+     * @throws PrototypeException
+     */
+    public function isEmpty(mixed $value): bool;
+
+    /**
+     * @param T $value
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
+     * @throws \ReflectionException
+     */
+    public function serializeValue(Binary\Buffer $buffer, WireSerializer $serializer, mixed $value, Wire\Tag $tag): void;
+
+    public function wireType(): Wire\Type;
 }

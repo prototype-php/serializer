@@ -32,17 +32,28 @@ use Kafkiansky\Binary;
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-extends IntType<int>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class VarintType extends IntType
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * {@inheritdoc}
+     */
+    public function read(Binary\Buffer $buffer): int
+    {
+        return $buffer->consumeVarInt();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeVarInt($value);
+    }
+
+    public function wireType(): Type
+    {
+        return Type::VARINT;
     }
 }

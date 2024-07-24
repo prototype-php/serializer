@@ -25,24 +25,20 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Wire;
+namespace Kafkiansky\Prototype\Exception;
 
-use Kafkiansky\Binary;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @internal
- * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @api
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class TooManyPropertyAttributes extends \Exception implements PrototypeException
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    public function __construct(
+        public readonly string $propertyName,
+        public readonly int $attributesCount,
+        ?\Throwable $previous = null,
+    ) {
+        parent::__construct(sprintf('The property "%s" has too many property marshaller attributes: %d.', $this->propertyName, $this->attributesCount), previous: $previous);
     }
 }

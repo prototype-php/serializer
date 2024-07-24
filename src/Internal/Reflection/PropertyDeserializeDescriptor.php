@@ -25,53 +25,65 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype;
+namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire;
-use Typhoon\Reflection\TyphoonReflector;
+use Kafkiansky\Prototype\Internal\Wire\PropertyDeserializer;
+use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Wire\WireDeserializer;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
  * @api
+ * @internal
+ * @template-covariant T
+ * @psalm-internal Kafkiansky\Prototype
  */
-final class Serializer
+final class PropertyDeserializeDescriptor
 {
-    private readonly Wire\ProtobufMarshaller $protobuf;
-
+    /**
+     * @param PropertyDeserializer<T> $setter
+     */
     public function __construct(
-        ?TyphoonReflector $reflector = null,
-    ) {
-        $this->protobuf = new Wire\ProtobufMarshaller(
-            $reflector ?: TyphoonReflector::build(),
-        );
-    }
+        private readonly \ReflectionProperty $property,
+        private readonly PropertyDeserializer $setter,
+    ) {}
 
     /**
-     * @template T of object
-     * @param T $message
-     * @throws Binary\BinaryException
+     * @return ?T
      * @throws PrototypeException
-     * @throws \ReflectionException
      */
-    public function serialize(object $message, ?Binary\Buffer $buffer = null): Binary\Buffer
+    public function default(): mixed
     {
-        $buffer ??= Binary\Buffer::empty(Binary\Endianness::little());
-
-        $this->protobuf->serialize($message, $buffer);
-
-        return $buffer;
+        return $this->setter->default();
     }
 
     /**
-     * @template T of object
-     * @param class-string<T> $messageType
      * @return T
-     * @throws \ReflectionException
      * @throws Binary\BinaryException
+     * @throws \ReflectionException
      * @throws PrototypeException
      */
-    public function deserialize(Binary\Buffer $buffer, string $messageType): object
+    public function readValue(Binary\Buffer $buffer, WireDeserializer $deserializer, Tag $tag): mixed
     {
-        return $this->protobuf->deserialize($messageType, $buffer);
+        return $this->setter->deserializeValue($buffer, $deserializer, $tag);
+    }
+
+    /**
+     * @template TClass of object
+     * @param TClass $object
+     */
+    public function setValue(object $object, mixed $value): void
+    {
+        $this->property->setValue($object, $value);
+    }
+
+    /**
+     * @template TClass of object
+     * @param TClass $object
+     */
+    public function isInitialized(object $object): bool
+    {
+        return $this->property->isInitialized($object);
     }
 }

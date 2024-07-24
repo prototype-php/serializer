@@ -28,21 +28,49 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @psalm-import-type JSONValue from ValueType
+ * @template-implements PropertySerializer<array<string, JSONValue>>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class SerializeStructProperty implements PropertySerializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /** @var TypeWriter<array<string, JSONValue>> */
+    private readonly TypeWriter $type;
+
+    public function __construct()
+    {
+        $this->type = new ValueType();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return [] === $value;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, WireSerializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $this->type->write($structBuffer = $buffer->clone(), $value);
+
+        if (!$structBuffer->isEmpty()) {
+            $buffer
+                ->writeVarUint($structBuffer->count())
+                ->write($structBuffer->reset())
+            ;
+        }
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Wire\Type::BYTES;
     }
 }

@@ -28,21 +28,52 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-implements PropertySerializer<\DateInterval>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class SerializeDateIntervalProperty implements PropertySerializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /** @var PropertySerializer<object> */
+    private readonly PropertySerializer $serializer;
+
+    public function __construct()
+    {
+        $this->serializer = new SerializeObjectProperty();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, WireSerializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $this->serializer->serializeValue(
+            $buffer,
+            $serializer,
+            new DurationType(
+                $value->days * 24 * 60 * 60 +
+                $value->h * 60 * 60 +
+                $value->i * 60 +
+                $value->s,
+               (int) ($value->f * 1_000_000_000),
+            ),
+            $tag,
+        );
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Wire\Type::BYTES;
     }
 }

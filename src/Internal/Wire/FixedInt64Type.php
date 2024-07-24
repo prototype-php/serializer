@@ -28,21 +28,35 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @psalm-type FixedInt64 = int<min, max>
+ * @template-extends IntType<FixedInt64>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class FixedInt64Type extends IntType
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /**
+     * {@inheritdoc}
+     */
+    public function read(Binary\Buffer $buffer): int
+    {
+        /** @var FixedInt64 */
+        return $buffer->consumeInt64();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function write(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeInt64($value);
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Type::FIXED64;
     }
 }

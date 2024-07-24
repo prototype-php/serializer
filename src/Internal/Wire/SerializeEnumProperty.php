@@ -28,21 +28,44 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @throws Binary\BinaryException
+ * @template-implements PropertySerializer<\BackedEnum>
  */
-function discard(Binary\Buffer $buffer, Tag $tag): void
+final class SerializeEnumProperty implements PropertySerializer
 {
-    if ($tag->type === Type::VARINT) {
-        $buffer->consumeVarUint();
-    } elseif ($tag->type === Type::FIXED32) {
-        $buffer->consumeUint32();
-    } elseif ($tag->type === Type::FIXED64) {
-        $buffer->consumeUint64();
-    } else {
-        $buffer->consume($buffer->consumeVarUint());
+    /** @var TypeWriter<int<0, max>>  */
+    private readonly TypeWriter $type;
+
+    public function __construct()
+    {
+        $this->type = new VaruintType();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return 0 === $value->value;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, WireSerializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        /** @var int<0, max> $variant */
+        $variant = $value->value;
+
+        $this->type->write($buffer, $variant);
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return $this->type->wireType();
     }
 }
