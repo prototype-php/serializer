@@ -27,50 +27,60 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Binary;
+use Kafkiansky\Binary\Buffer;
 use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Wire\Type;
 use Kafkiansky\Prototype\PrototypeException;
-use Typhoon\Reflection\PropertyReflection;
 
 /**
  * @api
  * @internal
+ * @template T
  * @psalm-internal Kafkiansky\Prototype
  */
-final class PropertyDescriptor
+final class PropertySerializeDescriptor
 {
+    /**
+     * @param PropertyMarshaller<T> $serializer
+     */
     public function __construct(
-        private readonly PropertyReflection $property,
-        private readonly PropertySetter $setter,
+        private readonly \ReflectionProperty $property,
+        private readonly PropertyMarshaller $serializer,
     ) {}
 
     /**
-     * @throws Binary\BinaryException
-     * @throws \ReflectionException
+     * @template TClass of object
+     * @param TClass $message
+     * @return T
+     */
+    public function value(object $message): mixed
+    {
+        /** @var T */
+        return $this->property->getValue($message);
+    }
+
+    /**
+     * @param T $value
      * @throws PrototypeException
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): void
+    public function isNotEmpty(mixed $value): bool
     {
-        $this->setter->readValue($buffer, $serializer, $tag);
+        return null !== $value && !$this->serializer->isEmpty($value);
+    }
+
+    public function protobufType(): Type
+    {
+        return $this->serializer->wireType();
     }
 
     /**
-     * @template T of object
-     * @param T $object
+     * @param T $value
+     * @throws PrototypeException
+     * @throws \Kafkiansky\Binary\BinaryException
+     * @throws \ReflectionException
      */
-    public function setValue(object $object): void
+    public function encode(Buffer $buffer, Serializer $serializer, Tag $tag, mixed $value): void
     {
-        $this->setter->setValue(
-            new SetProperty($object, $this->property),
-        );
-    }
-
-    /**
-     * @template T of object
-     * @param T $object
-     */
-    public function isInitialized(object $object): bool
-    {
-        return $this->property->isInitialized($object);
+        $this->serializer->serializeValue($buffer, $serializer, $value, $tag);
     }
 }

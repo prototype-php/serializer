@@ -36,6 +36,6 @@ final class PropertyNumberIsInvalid extends \Exception implements PrototypeExcep
 {
     public function __construct(public readonly int $propertyNumber, ?\Throwable $previous = null)
     {
-        parent::__construct(sprintf('Property number "%d" is invalid.', $this->propertyNumber), previous: $previous);
+        parent::__construct(\sprintf('Property number "%d" is invalid.', $this->propertyNumber), previous: $previous);
     }
 }

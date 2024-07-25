@@ -28,21 +28,44 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire\Type;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
+ * @psalm-consistent-constructor
  * @psalm-type FixedUint64 = int<0, max>
- * @template-extends IntType<FixedUint64>
+ * @template-implements TypeSerializer<FixedUint64>
  */
-final class FixedUint64Type extends IntType
+final class FixedUint64Type implements TypeSerializer
 {
     /**
      * {@inheritdoc}
      */
-    public function read(Binary\Buffer $buffer): int
+    public function writeTo(Binary\Buffer $buffer, mixed $value): void
     {
-        /** @var FixedUint64  */
+        $buffer->writeUint64($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function readFrom(Binary\Buffer $buffer): int
+    {
+        /** @var FixedUint64 */
         return $buffer->consumeUint64();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): int
+    {
+        return 0;
+    }
+
+    public function wireType(): Type
+    {
+        return Type::FIXED64;
     }
 }

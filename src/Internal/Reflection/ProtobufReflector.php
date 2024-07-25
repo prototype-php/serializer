@@ -27,20 +27,16 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Prototype\ArrayShape;
 use Kafkiansky\Prototype\Field;
-use Kafkiansky\Prototype\Internal\Type as ProtobufType;
-use Kafkiansky\Prototype\Map;
-use Kafkiansky\Prototype\Repeated;
-use Kafkiansky\Prototype\Scalar;
-use Kafkiansky\Prototype\Type;
-use Kafkiansky\Prototype\Type as NativeType;
+use Kafkiansky\Prototype\Internal;
+use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\DeclarationId\AnonymousClassId;
+use Typhoon\DeclarationId\NamedClassId;
+use Typhoon\Reflection\AttributeReflection;
 use Typhoon\Reflection\ClassReflection;
 use Typhoon\Reflection\PropertyReflection;
-use Kafkiansky\Prototype\Internal;
 
 /**
- * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  */
@@ -48,49 +44,78 @@ final class ProtobufReflector
 {
     /**
      * @template T of object
-     * @param ClassReflection<T> $class
-     * @return array<positive-int, PropertyDescriptor>
+     * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
+     * @psalm-return array<positive-int, PropertySerializeDescriptor>
+     * @throws PrototypeException
      */
-    public function properties(ClassReflection $class): array
+    public function propertySerializers(ClassReflection $class): array
+    {
+        return self::properties($class, static fn (\ReflectionProperty $property, PropertyMarshaller $marshaller): PropertySerializeDescriptor => new PropertySerializeDescriptor(
+            $property,
+            $marshaller,
+        ));
+    }
+
+    /**
+     * @template T of object
+     * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
+     * @psalm-return array<positive-int, PropertyDeserializeDescriptor>
+     * @throws PrototypeException
+     */
+    public function propertyDeserializers(ClassReflection $class): array
+    {
+        return self::properties($class, static fn (\ReflectionProperty $property, PropertyMarshaller $marshaller): PropertyDeserializeDescriptor => new PropertyDeserializeDescriptor(
+            $property,
+            $marshaller,
+        ));
+    }
+
+    /**
+     * @template T of object
+     * @template E
+     * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
+     * @param callable(\ReflectionProperty, PropertyMarshaller): E $propertyMapper
+     * @psalm-return array<positive-int, E>
+     * @throws PrototypeException
+     */
+    private static function properties(ClassReflection $class, callable $propertyMapper): array
     {
         [$properties, $num] = [[], 0];
 
-        foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
-            [$field, $scalarType, $listType, $mapType, $shapeType] = [
-                self::attribute($property, Field::class),
-                self::attribute($property, Scalar::class),
-                self::attribute($property, Repeated::class),
-                self::attribute($property, Map::class),
-                self::attribute($property, ArrayShape::class),
-            ];
+        $classProperties = $class
+            ->properties()
+            ->filter(static fn (PropertyReflection $property): bool => $property->isPublic() && !$property->isStatic())
+        ;
 
-            /** @var PropertySetter|PropertySetter[] $propertySetter */
-            $propertySetter = $property->getTyphoonType()->accept(
-                new PropertySetterResolver(
-                    self::nativeTypeToProtobufType($scalarType?->type),
-                    self::nativeTypeToProtobufType($listType?->type),
-                    [self::nativeTypeToProtobufType($mapType?->keyType), self::nativeTypeToProtobufType($mapType?->valueType)],
-                    null !== $shapeType
-                        ? array_merge(
-                            ...array_map(
-                                static fn (string $name, Type|string $type): array => [$name => self::nativeTypeToPropertySetter($type)],
-                                array_keys($shapeType->elements),
-                                $shapeType->elements,
-                            ),
-                        )
-                        : null,
-                ),
-            );
+        foreach ($classProperties as $property) {
+            /** @var ?Field $field */
+            $field = $property
+                ->attributes()
+                ->filter(static fn (AttributeReflection $attribute): bool => $attribute->class()->isInstanceOf(Field::class))
+                ->map(static fn (AttributeReflection $attribute): object => $attribute->newInstance())
+                ->toList()[0] ?? null
+            ;
+
+            /** @var PropertyMarshaller|list<PropertyMarshaller> $propertyMarshaller */
+            $propertyMarshaller = $property
+                ->type()
+                ->accept(new NativeTypeToPropertyMarshallerConverter())
+            ;
 
             $fieldNum = $field?->num ?: ++$num;
+
+            // Special case for `?Type` and `true|false` because it's not a true union for protobuf.
+            if (\is_array($propertyMarshaller) && \count($propertyMarshaller) === 1) {
+                $propertyMarshaller = $propertyMarshaller[0];
+            }
 
             // The oneof variants are passed as different fields of the protobuf message.
             // Since php has unions, we can combine different fields under one setter by artificially giving them some order,
             // which starts from the number of the field itself to N, where N is the number of union variants, not counting null.
             // Don't forget to subtract 1, since range is inclusive.
-            if (\is_array($propertySetter)) {
-                // How many variants union has without null.
-                $variants = $property->getType()?->allowsNull() ? \count($propertySetter) - 1 : \count($propertySetter);
+            if (\is_array($propertyMarshaller)) {
+                // How many variants union has.
+                $variants = \count($propertyMarshaller);
 
                 // Since we're using preincrement, we've already incremented the field count,
                 // so here we subtract one to add the number of union variants. Can we rewrite this?
@@ -100,10 +125,7 @@ final class ProtobufReflector
                 /** @psalm-var positive-int[] */
                 $fieldNum = range($fieldNum, $fieldNum + $variants - 1);
 
-                $propertySetter = new OneOfProperty(
-                    array_combine($fieldNum, array_filter($propertySetter, static fn (PropertySetter $setter): bool => !$setter instanceof NullProperty)),
-                    $property->hasDefaultValue() ? $property->getDefaultValue() : null,
-                );
+                $propertyMarshaller = new UnionPropertyMarshaller(array_combine($fieldNum, $propertyMarshaller));
             }
 
             if (!\is_array($fieldNum)) {
@@ -111,61 +133,13 @@ final class ProtobufReflector
             }
 
             foreach ($fieldNum as $n) {
-                $properties[$n] = new PropertyDescriptor($property, $propertySetter);
+                $properties[$n] = $propertyMapper(
+                    $property->toNativeReflection(),
+                    $propertyMarshaller,
+                );
             }
         }
 
         return $properties;
-    }
-
-    /**
-     * @template TClass of object
-     * @param class-string<TClass> $attributeClass
-     * @return ?TClass
-     */
-    private static function attribute(PropertyReflection $property, string $attributeClass): ?object
-    {
-        $attributes = $property->getAttributes($attributeClass);
-
-        return \count($attributes) > 0 ? $attributes[0]->newInstance() : null;
-    }
-
-    /**
-     * @param class-string|NativeType|null $type
-     * @return PropertySetter<mixed>
-     */
-    private static function nativeTypeToPropertySetter(null|string|NativeType $type = null): PropertySetter
-    {
-        /** @psalm-suppress ArgumentTypeCoercion Probably false positive. **/
-        return match (true) {
-            $type === null => new NullProperty(),
-            $type instanceof NativeType => new ScalarProperty(
-                self::nativeTypeToProtobufType($type),
-            ),
-            instanceOfDateTime($type) => new DateTimeProperty($type),
-            isClassOf($type, \DateInterval::class) => new DateIntervalProperty(),
-            default => new MessageProperty($type),
-        };
-    }
-
-    /**
-     * @psalm-return ($type is null ? null : ProtobufType\ProtobufType<mixed>)
-     */
-    private static function nativeTypeToProtobufType(?NativeType $type = null): ?ProtobufType\ProtobufType
-    {
-        /** @var ?ProtobufType\ProtobufType<mixed> */
-        return match ($type) {
-            NativeType::fixed32 => new ProtobufType\FixedUint32Type(),
-            NativeType::fixed64 => new ProtobufType\FixedUint64Type(),
-            NativeType::sfixed32 => new ProtobufType\FixedInt32Type(),
-            NativeType::sfixed64 => new ProtobufType\FixedInt64Type(),
-            NativeType::int32, NativeType::int64, NativeType::uint32, NativeType::uint64 => new ProtobufType\VaruintType(),
-            NativeType::sint32, NativeType::sint64 => new ProtobufType\VarintType(),
-            NativeType::string => new ProtobufType\StringType(),
-            NativeType::float => new ProtobufType\FloatType(),
-            NativeType::double => new ProtobufType\DoubleType(),
-            NativeType::bool => new ProtobufType\BoolType(),
-            default => null,
-        };
     }
 }

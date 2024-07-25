@@ -25,16 +25,63 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype;
+namespace Kafkiansky\Prototype\Internal\Reflection;
+
+use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
- * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
+ * @template T
+ * @template-implements PropertyMarshaller<T>
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Map
+final class UnionPropertyMarshaller implements PropertyMarshaller
 {
+    /**
+     * @param array<positive-int, PropertyMarshaller<T>> $deserializers
+     */
     public function __construct(
-        public readonly ?Type $keyType = null,
-        public readonly ?Type $valueType = null,
+        private readonly array $deserializers,
     ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): mixed
+    {
+        return $this->deserializers[$tag->num]->deserializeValue(
+            $buffer,
+            $deserializer,
+            $tag,
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return false;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Wire\Type::BYTES;
+    }
 }

@@ -43,6 +43,6 @@ final class EnumDoesNotContainVariant extends \Exception implements PrototypeExc
         public readonly int $variant,
         ?\Throwable $previous = null,
     ) {
-        parent::__construct(sprintf('Enum "%s" does not contain variant "%d".', $this->enumName, $this->variant), previous: $previous);
+        parent::__construct(\sprintf('Enum "%s" does not contain variant "%d".', $this->enumName, $this->variant), previous: $previous);
     }
 }

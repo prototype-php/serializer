@@ -27,9 +27,6 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Type;
 
-use Kafkiansky\Prototype\Scalar;
-use Kafkiansky\Prototype\Type;
-
 /**
  * @api
  * @internal
@@ -37,10 +34,12 @@ use Kafkiansky\Prototype\Type;
  */
 final class DurationType
 {
+    /**
+     * @param int64 $seconds
+     * @param int32 $nanos
+     */
     public function __construct(
-        #[Scalar(Type::int64)]
         public readonly int $seconds,
-        #[Scalar(Type::int32)]
         public readonly int $nanos,
     ) {}
 }

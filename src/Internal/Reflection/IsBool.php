@@ -25,15 +25,53 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype;
+namespace Kafkiansky\Prototype\Internal\Reflection;
+
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
 
 /**
- * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
+ * @template-extends DefaultTypeVisitor<bool>
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Scalar
+final class IsBool extends DefaultTypeVisitor
 {
-    public function __construct(
-        public readonly Type $type,
-    ) {}
+    /**
+     * {@inheritdoc}
+     */
+    public function true(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function false(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function union(Type $type, array $ofTypes): bool
+    {
+        foreach ($ofTypes as $ofType) {
+            if (!$ofType->accept($this)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function default(Type $type): bool
+    {
+        return false;
+    }
 }

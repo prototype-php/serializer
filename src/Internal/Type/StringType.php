@@ -28,18 +28,28 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire\Type;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-implements ProtobufType<string>
+ * @psalm-consistent-constructor
+ * @template-implements TypeSerializer<string>
  */
-final class StringType implements ProtobufType
+final class StringType implements TypeSerializer
 {
     /**
      * {@inheritdoc}
      */
-    public function read(Binary\Buffer $buffer): string
+    public function writeTo(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeVarUint(\strlen($value))->write($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function readFrom(Binary\Buffer $buffer): string
     {
         return $buffer->consume($buffer->consumeVarUint());
     }
@@ -50,5 +60,10 @@ final class StringType implements ProtobufType
     public function default(): string
     {
         return '';
+    }
+
+    public function wireType(): Type
+    {
+        return Type::BYTES;
     }
 }

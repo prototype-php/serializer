@@ -28,52 +28,69 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-covariant TKey of array-key
- * @template-covariant TValue
- * @template-extends PropertySetter<array<TKey, TValue>>
+ * @template T of object
+ * @template-implements PropertyMarshaller<T>
  */
-final class MapProperty extends PropertySetter
+final class ObjectPropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @param PropertySetter<TKey>   $keyType
-     * @param PropertySetter<TValue> $valueType
+     * @param class-string<T> $messageType
      */
     public function __construct(
-        private readonly PropertySetter $keyType,
-        private readonly PropertySetter $valueType,
-    ) {
-        $this->value = [];
+        private readonly string $messageType,
+    ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): object
+    {
+        return $deserializer->deserialize(
+            $this->messageType,
+            $buffer->split(
+                $buffer->consumeVarUint(),
+            ),
+        );
     }
 
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): array
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
-        $buffer = $buffer->split($buffer->consumeVarUint());
+        $serializer->serialize($value, $objectBuffer = $buffer->clone());
 
-        [$key, $value] = [null, null];
-
-        while (!$buffer->isEmpty()) {
-            $tag = Tag::decode($buffer);
-
-            if ($tag->num === 1) {
-                $key = $this->keyType->readValue($buffer, $serializer, $tag);
-            } elseif($tag->num === 2) {
-                $value = $this->valueType->readValue($buffer, $serializer, $tag);
-            }
+        if (!$objectBuffer->isEmpty()) {
+            $buffer
+                ->writeVarUint($objectBuffer->count())
+                ->write($objectBuffer->reset())
+            ;
         }
+    }
 
-        if (null !== $key) {
-            $this->value[$key] = $value;
-        }
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return null;
+    }
 
-        /** @var array<TKey, TValue> */
-        return $this->value;
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return false;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Wire\Type::BYTES;
     }
 }

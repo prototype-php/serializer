@@ -28,33 +28,63 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-covariant T of object
- * @template-extends PropertySetter<T>
+ * @template T
+ * @template-implements PropertyMarshaller<T>
  */
-final class MessageProperty extends PropertySetter
+final class ScalarPropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @param class-string<T> $messageType
+     * @param TypeSerializer<T> $type
      */
     public function __construct(
-        private readonly string $messageType,
+        private readonly TypeSerializer $type,
     ) {}
 
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): object
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): mixed
     {
-        return $this->value = $serializer->deserialize(
-            $this->messageType,
-            $buffer->split(
-                $buffer->consumeVarUint(),
-            ),
-        );
+        return $this->type->readFrom($buffer);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return $this->type->default();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $this->type->writeTo($buffer, $value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        /** @psalm-suppress DocblockTypeContradiction */
+        return 0 === $value
+            || 0.0 === $value
+            || false === $value
+            || '' === $value
+            ;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return $this->type->wireType();
     }
 }

@@ -25,20 +25,24 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Internal\Reflection;
+
+use Kafkiansky\Binary;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @template-covariant T of int
- * @template-implements ProtobufType<T>
+ * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
  */
-abstract class IntType implements ProtobufType
+interface Serializer
 {
     /**
-     * {@inheritdoc}
+     * @template T of object
+     * @param T $message
+     * @throws \ReflectionException
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
      */
-    final public function default(): int
-    {
-        /** @var T  */
-        return 0;
-    }
+    public function serialize(object $message, Binary\Buffer $buffer): void;
 }

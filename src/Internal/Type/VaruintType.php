@@ -28,21 +28,44 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire\Type;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @psalm-type VarUint = positive-int
- * @template-extends IntType<VarUint>
+ * @psalm-consistent-constructor
+ * @psalm-type VarUint = int<0, max>
+ * @template-implements TypeSerializer<VarUint>
  */
-final class VaruintType extends IntType
+final class VaruintType implements TypeSerializer
 {
     /**
      * {@inheritdoc}
      */
-    public function read(Binary\Buffer $buffer): int
+    public function readFrom(Binary\Buffer $buffer): int
     {
         /** @var VarUint */
         return $buffer->consumeVarUint();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function writeTo(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeVarUint($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): float
+    {
+        return 0;
+    }
+
+    public function wireType(): Type
+    {
+        return Type::VARINT;
     }
 }

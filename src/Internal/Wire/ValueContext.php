@@ -25,39 +25,38 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Reflection;
-
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+namespace Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-covariant T
- * @template-extends PropertySetter<T>
+ * @psalm-type ValueType = scalar|object|array|null
  */
-final class OneOfProperty extends PropertySetter
+final class ValueContext
 {
+    /** @var ValueType  */
+    private mixed $value = null;
+
     /**
-     * @param array<positive-int, PropertySetter<T>> $setters
-     * @param ?T $default
+     * @param ValueType|\Traversable $value
      */
-    public function __construct(
-        private readonly array $setters,
-        mixed $default,
-    ) {
-        $this->value = $default;
+    public function setValue(mixed $value): void
+    {
+        if ($value instanceof \Traversable) {
+            $value = iterator_to_array($value);
+        }
+
+        $this->value = match (true) {
+            \is_array($value) => array_merge(!\is_array($this->value) ? [] : $this->value, $value),
+            default => $value,
+        };
     }
 
     /**
-     * {@inheritdoc}
+     * @return ValueType
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): mixed
+    public function getValue(): mixed
     {
-        return $this->value = $this->setters[$tag->num]->readValue(
-            $buffer,
-            $serializer,
-            $tag,
-        );
+        return $this->value;
     }
 }

@@ -25,15 +25,29 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype;
+namespace Kafkiansky\Prototype\Internal\Reflection;
+
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
 
 /**
- * @api
+ * @template-extends DefaultTypeVisitor<bool>
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class Repeated
+final class IsMixed extends DefaultTypeVisitor
 {
-    public function __construct(
-        public readonly Type $type,
-    ) {}
+    /**
+     * {@inheritdoc}
+     */
+    public function mixed(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function default(Type $type): bool
+    {
+        return false;
+    }
 }

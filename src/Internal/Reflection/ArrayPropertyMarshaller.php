@@ -28,42 +28,60 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
-use Kafkiansky\Prototype\Internal\Type\TimestampType;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-extends PropertySetter<?\DateTimeInterface>
+ * @template T
+ * @template-implements PropertyMarshaller<iterable<T>>
  */
-final class DateTimeProperty extends PropertySetter
+final class ArrayPropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @param class-string<\DateTimeImmutable|\DateTime> $dateTimeClass
+     * @param PropertyMarshaller<T> $marshaller
      */
     public function __construct(
-        private readonly string $dateTimeClass,
-    ) {
-        $this->value = null;
+        private readonly PropertyMarshaller $marshaller,
+    ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): iterable
+    {
+        yield $this->marshaller->deserializeValue($buffer, $deserializer, $tag);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): \DateTimeInterface
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
-        $timestamp = $serializer->deserialize(TimestampType::class, $buffer->split($buffer->consumeVarUint()));
-
-        /** @var class-string<\DateTimeImmutable|\DateTime> $instance */
-        $instance = interface_exists($this->dateTimeClass) ? \DateTimeImmutable::class : $this->dateTimeClass;
-
-        $time = $instance::createFromFormat('U.u', sprintf('%d.%06d', $timestamp->seconds, $timestamp->nanos / 1000));
-
-        if (false === $time) {
-            throw new PropertyValueIsInvalid(TimestampType::class);
+        foreach ($value as $item) {
+            $tag->encode($buffer);
+            $this->marshaller->serializeValue($buffer, $serializer, $item, $tag);
         }
+    }
 
-        return $this->value = $time;
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): iterable
+    {
+        return [];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return [] === $value;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return $this->marshaller->wireType();
     }
 }

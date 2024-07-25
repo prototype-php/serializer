@@ -36,6 +36,6 @@ final class TypeIsUnknown extends \Exception implements PrototypeException
 {
     public function __construct(public readonly int $type, ?\Throwable $previous = null)
     {
-        parent::__construct(sprintf('The field type "%d" is unknown.', $this->type), previous: $previous);
+        parent::__construct(\sprintf('The field type "%d" is unknown.', $this->type), previous: $previous);
     }
 }

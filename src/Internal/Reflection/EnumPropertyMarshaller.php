@@ -30,37 +30,70 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\EnumDoesNotContainVariant;
 use Kafkiansky\Prototype\Exception\EnumDoesNotContainZeroVariant;
-use Kafkiansky\Prototype\Internal\Type\ProtobufType;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
+use Kafkiansky\Prototype\Internal\Type\VaruintType;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-covariant T of \BackedEnum
- * @template-extends PropertySetter<T>
+ * @template T of \BackedEnum
+ * @template-implements PropertyMarshaller<T>
  */
-final class EnumProperty extends PropertySetter
+final class EnumPropertyMarshaller implements PropertyMarshaller
 {
+    /** @var TypeSerializer<int<0, max>>  */
+    private readonly TypeSerializer $type;
+
     /**
-     * @param ProtobufType<positive-int> $type
      * @psalm-param enum-string<T> $enumName
-     * @throws EnumDoesNotContainZeroVariant
      */
     public function __construct(
-        private readonly ProtobufType $type,
         private readonly string $enumName,
     ) {
-        $this->value = $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName);
+        $this->type = new VaruintType();
     }
 
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): \BackedEnum
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): \BackedEnum
     {
-        return $this->value = $this->enumName::tryFrom($variant = $this->type->read($buffer)) ?: throw new EnumDoesNotContainVariant(
+        return $this->enumName::tryFrom($variant = $this->type->readFrom($buffer)) ?: throw new EnumDoesNotContainVariant(
             $this->enumName,
             $variant,
         );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        /** @var int<0, max> $variant */
+        $variant = $value->value;
+
+        $this->type->writeTo($buffer, $variant);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return 0 === $value->value;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return $this->type->wireType();
     }
 }

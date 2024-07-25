@@ -30,6 +30,8 @@ namespace Kafkiansky\Prototype\Internal\Wire;
 use Kafkiansky\Binary;
 
 /**
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
  * @throws Binary\BinaryException
  */
 function discard(Binary\Buffer $buffer, Tag $tag): void

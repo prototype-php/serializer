@@ -30,26 +30,71 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
 use Kafkiansky\Prototype\Internal\Type\DurationType;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-extends PropertySetter<\DateInterval>
+ * @template-implements PropertyMarshaller<\DateInterval>
  */
-final class DateIntervalProperty extends PropertySetter
+final class DateIntervalPropertyMarshaller implements PropertyMarshaller
 {
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): \DateInterval
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): \DateInterval
     {
-        $duration = $serializer->deserialize(DurationType::class, $buffer->split($buffer->consumeVarUint()));
+        $duration = $deserializer->deserialize(DurationType::class, $buffer->split($buffer->consumeVarUint()));
 
         try {
-            return $this->value = new \DateInterval(sprintf('PT%dS', $duration->seconds + $duration->nanos / 1e9));
-        } catch (\Exception $e) {
+            return new \DateInterval(\sprintf('PT%dS', $duration->seconds + $duration->nanos / 1e9));
+        } catch (\Throwable $e) {
             throw new PropertyValueIsInvalid(\DateInterval::class, $e);
         }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $serializer->serialize(
+            new DurationType(
+                $value->days * 24 * 60 * 60 +
+                $value->h * 60 * 60 +
+                $value->i * 60 +
+                $value->s,
+                (int) ($value->f * 1_000_000_000),
+            ),
+            $objectBuffer = $buffer->clone(),
+        );
+
+        if (!$objectBuffer->isEmpty()) {
+            $buffer
+                ->writeVarUint($objectBuffer->count())
+                ->write($objectBuffer->reset())
+            ;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return false;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Wire\Type::BYTES;
     }
 }

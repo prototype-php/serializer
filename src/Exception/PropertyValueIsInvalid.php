@@ -35,6 +35,6 @@ final class PropertyValueIsInvalid extends \Exception implements PrototypeExcept
         public readonly string $property,
         ?\Throwable $previous = null,
     ) {
-        parent::__construct(sprintf('Value for property "%s" is invalid.', $this->property), previous: $previous);
+        parent::__construct(\sprintf('Value for property "%s" is invalid.', $this->property), previous: $previous);
     }
 }

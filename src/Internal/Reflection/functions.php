@@ -27,6 +27,27 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
+use Kafkiansky\Prototype\Exception\TypeIsNotSupported;
+use Kafkiansky\Prototype\PrototypeException;
+
+/**
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
+ * @param non-empty-string $type
+ * @throws PrototypeException
+ */
+function typeStringToPropertyMarshaller(string $type): PropertyMarshaller
+{
+    /** @psalm-suppress ArgumentTypeCoercion */
+    return match (true) {
+        enum_exists($type) => new EnumPropertyMarshaller($type),
+        instanceOfDateTime($type) => new DateTimePropertyMarshaller($type),
+        isClassOf($type, \DateInterval::class) => new DateIntervalPropertyMarshaller(),
+        class_exists($type) => new ObjectPropertyMarshaller($type),
+        default => throw new TypeIsNotSupported($type),
+    };
+}
+
 /**
  * @template T of object
  * @param class-string<T>|string $class

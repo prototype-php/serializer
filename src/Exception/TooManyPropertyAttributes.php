@@ -25,30 +25,20 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Reflection;
+namespace Kafkiansky\Prototype\Exception;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
 use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @template-covariant T
+ * @api
  */
-abstract class PropertySetter
+final class TooManyPropertyAttributes extends \Exception implements PrototypeException
 {
-    /** @var ?T */
-    protected mixed $value = null;
-
-    /**
-     * @return T
-     * @throws Binary\BinaryException
-     * @throws \ReflectionException
-     * @throws PrototypeException
-     */
-    abstract public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): mixed;
-
-    final public function setValue(SetProperty $property): void
-    {
-        $property->setValue($this->value);
+    public function __construct(
+        public readonly string $propertyName,
+        public readonly int $attributesCount,
+        ?\Throwable $previous = null,
+    ) {
+        parent::__construct(\sprintf('The property "%s" has too many property marshaller attributes: %d.', $this->propertyName, $this->attributesCount), previous: $previous);
     }
 }

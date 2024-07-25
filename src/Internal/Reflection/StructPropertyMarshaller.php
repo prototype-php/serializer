@@ -28,35 +28,70 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Type\ProtobufType;
+use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
 use Kafkiansky\Prototype\Internal\Type\ValueType;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-extends PropertySetter<array<string, mixed>>
+ * @psalm-import-type JSONValue from ValueType
+ * @template-implements PropertyMarshaller<array<string, JSONValue>>
  */
-final class StructProperty extends PropertySetter
+final class StructPropertyMarshaller implements PropertyMarshaller
 {
-    /** @var ProtobufType<array<string, mixed>> */
-    private readonly ProtobufType $type;
+    /** @var TypeSerializer<array<string, JSONValue>> */
+    private readonly TypeSerializer $type;
 
     public function __construct()
     {
-        [$this->type, $this->value] = [
-            new ValueType(),
-            [],
-        ];
+        $this->type = new ValueType();
     }
 
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): array
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): array
     {
-        return $this->value = $this->type->read(
+        return $this->type->readFrom(
             $buffer->split($buffer->consumeVarUint()),
         );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $this->type->writeTo($structBuffer = $buffer->clone(), $value);
+
+        if (!$structBuffer->isEmpty()) {
+            $tag->encode($buffer);
+            $buffer
+                ->writeVarUint($structBuffer->count())
+                ->write($structBuffer->reset())
+            ;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): array
+    {
+        return [];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return [] === $value;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Wire\Type::BYTES;
     }
 }

@@ -27,34 +27,29 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-covariant T
- * @template-extends PropertySetter<list<T>>
+ * @template-extends DefaultTypeVisitor<bool>
  */
-final class ListProperty extends PropertySetter
+final class IsNull extends DefaultTypeVisitor
 {
     /**
-     * @param PropertySetter<T> $type
+     * {@inheritdoc}
      */
-    public function __construct(
-        private readonly PropertySetter $type,
-    ) {
-        $this->value = [];
+    public function null(Type $type): bool
+    {
+        return true;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): array
+    protected function default(Type $type): bool
     {
-        $this->value[] = $this->type->readValue($buffer, $serializer, $tag);
-
-        /** @var list<T> */
-        return $this->value;
+        return false;
     }
 }

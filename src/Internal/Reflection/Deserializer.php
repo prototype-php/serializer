@@ -25,18 +25,24 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype;
+namespace Kafkiansky\Prototype\Internal\Reflection;
+
+use Kafkiansky\Binary;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
  */
-#[\Attribute(\Attribute::TARGET_PROPERTY)]
-final class ArrayShape
+interface Deserializer
 {
     /**
-     * @param array<non-empty-string, Type|class-string> $elements
+     * @template T of object
+     * @param class-string<T> $messageType
+     * @return T
+     * @throws \ReflectionException
+     * @throws Binary\BinaryException
+     * @throws PrototypeException
      */
-    public function __construct(
-        public readonly array $elements,
-    ) {}
+    public function deserialize(string $messageType, Binary\Buffer $buffer): object;
 }

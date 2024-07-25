@@ -25,32 +25,20 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Reflection;
+namespace Kafkiansky\Prototype\Exception;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Type\ProtobufType;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @template-covariant T
- * @template-extends PropertySetter<T>
+ * @api
  */
-final class ScalarProperty extends PropertySetter
+final class ValueIsNotSerializable extends \Exception implements PrototypeException
 {
-    /**
-     * @param ProtobufType<T> $type
-     */
     public function __construct(
-        private readonly ProtobufType $type,
+        public readonly mixed $value,
+        public readonly string $type,
+        ?\Throwable $previous = null,
     ) {
-        $this->value = $this->type->default();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function readValue(Binary\Buffer $buffer, WireSerializer $serializer, Tag $tag): mixed
-    {
-        return $this->value = $this->type->read($buffer);
+        parent::__construct(\sprintf('The value of type "%s" is not serializable.', $this->type), previous: $previous);
     }
 }

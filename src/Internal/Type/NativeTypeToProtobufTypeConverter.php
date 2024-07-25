@@ -28,21 +28,23 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Prototype\Exception\TypeIsNotSupported;
-use Typhoon\Type\DefaultTypeVisitor;
+use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\DeclarationId\NamedClassId;
 use Typhoon\Type\Type;
-use function Typhoon\TypeStringifier\stringify;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
+use function Typhoon\Type\stringify;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template-extends DefaultTypeVisitor<ProtobufType>
+ * @template-extends DefaultTypeVisitor<TypeSerializer>
  */
-final class ProtobufTypeResolver extends DefaultTypeVisitor
+final class NativeTypeToProtobufTypeConverter extends DefaultTypeVisitor
 {
     /**
      * {@inheritdoc}
      */
-    public function string(Type $self): StringType
+    public function string(Type $type): StringType
     {
         return new StringType();
     }
@@ -50,69 +52,41 @@ final class ProtobufTypeResolver extends DefaultTypeVisitor
     /**
      * {@inheritdoc}
      */
-    public function bool(Type $self): BoolType
-    {
-        return new BoolType();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function float(Type $self): FloatType
-    {
-        return new FloatType();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function mixed(Type $self): ValueType
+    public function mixed(Type $type): ValueType
     {
         return new ValueType();
     }
 
     /**
-     * {@inheritdoc}
+     * @throws PrototypeException
+     * @throws \ReflectionException
      */
-    public function intRange(Type $self, ?int $min, ?int $max): IntType
+    public function namedObject(Type $type, NamedClassId $classId, array $typeArguments): TypeSerializer
     {
-        if (-2147483648 === $min && 2147483647 === $max) {
-            return new FixedInt32Type();
-        } elseif (0 === $min && 4294967295 === $max) {
-            return new FixedUint32Type();
-        } elseif ((null === $min || \PHP_INT_MIN === $min) && (null === $max || \PHP_INT_MAX === $max)) {
-            return new FixedInt64Type();
-        } elseif (0 === $min && (null === $max || \PHP_INT_MAX === $max)) {
-            return new FixedUint64Type();
-        } else {
-            return new VarintType();
+        if ($classId->reflect()->implementsInterface(TypeSerializer::class)) {
+            /** @var TypeSerializer */
+            return $classId->reflect()->newInstanceWithoutConstructor();
         }
+
+        return $this->default($type);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function int(Type $self): VaruintType
-    {
-        return new VaruintType();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function namedObject(Type $self, string $class, array $arguments): DoubleType
+    public function float(Type $type, ?float $min, ?float $max): FloatType|DoubleType
     {
         return match (true) {
-            $class === 'double' => new DoubleType(),
-            default => throw new TypeIsNotSupported(stringify($self)),
+            $min === -1.7976931348623157E+308 && $max === 1.7976931348623157E+308 => new DoubleType(),
+            default => new FloatType(),
         };
     }
 
     /**
      * @throws TypeIsNotSupported
      */
-    protected function default(Type $self): never
+    protected function default(Type $type): TypeSerializer
     {
-        throw new TypeIsNotSupported(stringify($self));
+        throw new TypeIsNotSupported(stringify($type));
     }
 }

@@ -27,29 +27,61 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Typhoon\Reflection\PropertyReflection;
+use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
+ * @api
  * @internal
+ * @template-covariant T
  * @psalm-internal Kafkiansky\Prototype
- * @template T of object
  */
-final class SetProperty
+final class PropertyDeserializeDescriptor
 {
     /**
-     * @param T $message
+     * @param PropertyMarshaller<T> $setter
      */
     public function __construct(
-        private readonly object $message,
-        private readonly PropertyReflection $property,
+        private readonly \ReflectionProperty $property,
+        private readonly PropertyMarshaller $setter,
     ) {}
 
     /**
-     * @template TValue
-     * @param TValue $value
+     * @return ?T
+     * @throws PrototypeException
      */
-    public function setValue(mixed $value): void
+    public function default(): mixed
     {
-        $this->property->setValue($this->message, $value);
+        return $this->setter->default();
+    }
+
+    /**
+     * @return T
+     * @throws Binary\BinaryException
+     * @throws \ReflectionException
+     * @throws PrototypeException
+     */
+    public function readValue(Binary\Buffer $buffer, Deserializer $deserializer, Tag $tag): mixed
+    {
+        return $this->setter->deserializeValue($buffer, $deserializer, $tag);
+    }
+
+    /**
+     * @template TClass of object
+     * @param TClass $object
+     */
+    public function setValue(object $object, mixed $value): void
+    {
+        $this->property->setValue($object, $value);
+    }
+
+    /**
+     * @template TClass of object
+     * @param TClass $object
+     */
+    public function isInitialized(object $object): bool
+    {
+        return $this->property->isInitialized($object);
     }
 }

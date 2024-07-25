@@ -27,22 +27,37 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\PrototypeException;
+use Kafkiansky\Prototype\Internal\Type\StringType;
+use Typhoon\DeclarationId\NamedClassId;
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
 
 /**
- * @internal
- * @psalm-internal Kafkiansky\Prototype
+ * @template-extends DefaultTypeVisitor<bool>
  */
-interface WireSerializer
+final class IsString extends DefaultTypeVisitor
 {
     /**
-     * @template T of object
-     * @param class-string<T> $messageType
-     * @return T
-     * @throws \ReflectionException
-     * @throws Binary\BinaryException
-     * @throws PrototypeException
+     * {@inheritdoc}
      */
-    public function deserialize(string $messageType, Binary\Buffer $buffer): object;
+    public function string(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function namedObject(Type $type, NamedClassId $classId, array $typeArguments): bool
+    {
+        return $classId->name === StringType::class;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function default(Type $type): bool
+    {
+        return false;
+    }
 }
