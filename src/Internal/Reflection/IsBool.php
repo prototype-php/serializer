@@ -25,20 +25,53 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Exception;
+namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
 
 /**
- * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
+ * @template-extends DefaultTypeVisitor<bool>
  */
-final class ValueIsNotSerializable extends \Exception implements PrototypeException
+final class IsBool extends DefaultTypeVisitor
 {
-    public function __construct(
-        public readonly mixed $value,
-        public readonly string $type,
-        ?\Throwable $previous = null,
-    ) {
-        parent::__construct(\sprintf('The value of type "%s" is not serializable.', $this->type), previous: $previous);
+    /**
+     * {@inheritdoc}
+     */
+    public function true(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function false(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function union(Type $type, array $ofTypes): bool
+    {
+        foreach ($ofTypes as $ofType) {
+            if (!$ofType->accept($this)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function default(Type $type): bool
+    {
+        return false;
     }
 }

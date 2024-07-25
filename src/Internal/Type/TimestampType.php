@@ -25,20 +25,21 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Exception;
-
-use Kafkiansky\Prototype\PrototypeException;
+namespace Kafkiansky\Prototype\Internal\Type;
 
 /**
  * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
  */
-final class ValueIsNotSerializable extends \Exception implements PrototypeException
+final class TimestampType
 {
+    /**
+     * @param int64 $seconds
+     * @param int32 $nanos
+     */
     public function __construct(
-        public readonly mixed $value,
-        public readonly string $type,
-        ?\Throwable $previous = null,
-    ) {
-        parent::__construct(\sprintf('The value of type "%s" is not serializable.', $this->type), previous: $previous);
-    }
+        public readonly int $seconds,
+        public readonly int $nanos,
+    ) {}
 }

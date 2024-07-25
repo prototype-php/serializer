@@ -25,20 +25,29 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Exception;
+namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
 
 /**
- * @api
+ * @template-extends DefaultTypeVisitor<bool>
  */
-final class ValueIsNotSerializable extends \Exception implements PrototypeException
+final class IsMixed extends DefaultTypeVisitor
 {
-    public function __construct(
-        public readonly mixed $value,
-        public readonly string $type,
-        ?\Throwable $previous = null,
-    ) {
-        parent::__construct(\sprintf('The value of type "%s" is not serializable.', $this->type), previous: $previous);
+    /**
+     * {@inheritdoc}
+     */
+    public function mixed(Type $type): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function default(Type $type): bool
+    {
+        return false;
     }
 }

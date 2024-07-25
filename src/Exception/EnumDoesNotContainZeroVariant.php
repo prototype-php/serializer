@@ -40,6 +40,6 @@ final class EnumDoesNotContainZeroVariant extends \Exception implements Prototyp
      */
     public function __construct(public readonly string $enumName, ?\Throwable $previous = null)
     {
-        parent::__construct(sprintf('Enum "%s" must contain zero variant.', $this->enumName), previous: $previous);
+        parent::__construct(\sprintf('Enum "%s" must contain zero variant.', $this->enumName), previous: $previous);
     }
 }

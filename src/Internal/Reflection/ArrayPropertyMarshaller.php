@@ -28,60 +28,60 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
-use Kafkiansky\Prototype\PrototypeException;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
- * @api
  * @internal
- * @template-covariant T
  * @psalm-internal Kafkiansky\Prototype
+ * @template T
+ * @template-implements PropertyMarshaller<iterable<T>>
  */
-final class PropertyDeserializeDescriptor
+final class ArrayPropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @param PropertyMarshaller<T> $setter
+     * @param PropertyMarshaller<T> $marshaller
      */
     public function __construct(
-        private readonly \ReflectionProperty $property,
-        private readonly PropertyMarshaller $setter,
+        private readonly PropertyMarshaller $marshaller,
     ) {}
 
     /**
-     * @return ?T
-     * @throws PrototypeException
+     * {@inheritdoc}
      */
-    public function default(): mixed
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): iterable
     {
-        return $this->setter->default();
+        yield $this->marshaller->deserializeValue($buffer, $deserializer, $tag);
     }
 
     /**
-     * @return T
-     * @throws Binary\BinaryException
-     * @throws \ReflectionException
-     * @throws PrototypeException
+     * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, Deserializer $deserializer, Tag $tag): mixed
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
-        return $this->setter->deserializeValue($buffer, $deserializer, $tag);
+        foreach ($value as $item) {
+            $tag->encode($buffer);
+            $this->marshaller->serializeValue($buffer, $serializer, $item, $tag);
+        }
     }
 
     /**
-     * @template TClass of object
-     * @param TClass $object
+     * {@inheritdoc}
      */
-    public function setValue(object $object, mixed $value): void
+    public function default(): iterable
     {
-        $this->property->setValue($object, $value);
+        return [];
     }
 
     /**
-     * @template TClass of object
-     * @param TClass $object
+     * {@inheritdoc}
      */
-    public function isInitialized(object $object): bool
+    public function isEmpty(mixed $value): bool
     {
-        return $this->property->isInitialized($object);
+        return [] === $value;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return $this->marshaller->wireType();
     }
 }

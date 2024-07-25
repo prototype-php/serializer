@@ -28,11 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary\Buffer;
-use Kafkiansky\Prototype\Internal\Wire\PropertySerializer;
 use Kafkiansky\Prototype\Internal\Wire\Tag;
-use Kafkiansky\Prototype\Internal\Wire\WireSerializer;
-use Kafkiansky\Prototype\PrototypeException;
 use Kafkiansky\Prototype\Internal\Wire\Type;
+use Kafkiansky\Prototype\PrototypeException;
 
 /**
  * @api
@@ -43,11 +41,11 @@ use Kafkiansky\Prototype\Internal\Wire\Type;
 final class PropertySerializeDescriptor
 {
     /**
-     * @param PropertySerializer<T> $serializer
+     * @param PropertyMarshaller<T> $serializer
      */
     public function __construct(
         private readonly \ReflectionProperty $property,
-        private readonly PropertySerializer $serializer,
+        private readonly PropertyMarshaller $serializer,
     ) {}
 
     /**
@@ -81,7 +79,7 @@ final class PropertySerializeDescriptor
      * @throws \Kafkiansky\Binary\BinaryException
      * @throws \ReflectionException
      */
-    public function encode(Buffer $buffer, WireSerializer $serializer, Tag $tag, mixed $value): void
+    public function encode(Buffer $buffer, Serializer $serializer, Tag $tag, mixed $value): void
     {
         $this->serializer->serializeValue($buffer, $serializer, $value, $tag);
     }

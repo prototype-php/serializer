@@ -25,20 +25,45 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Exception;
+namespace Kafkiansky\Prototype\Internal\Type;
 
-use Kafkiansky\Prototype\PrototypeException;
+use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire\Type;
 
 /**
- * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
+ * @psalm-consistent-constructor
+ * @template-implements TypeSerializer<float>
  */
-final class ValueIsNotSerializable extends \Exception implements PrototypeException
+final class FloatType implements TypeSerializer
 {
-    public function __construct(
-        public readonly mixed $value,
-        public readonly string $type,
-        ?\Throwable $previous = null,
-    ) {
-        parent::__construct(\sprintf('The value of type "%s" is not serializable.', $this->type), previous: $previous);
+    /**
+     * {@inheritdoc}
+     */
+    public function writeTo(Binary\Buffer $buffer, mixed $value): void
+    {
+        $buffer->writeFloat($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function readFrom(Binary\Buffer $buffer): float
+    {
+        return $buffer->consumeFloat();
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): float
+    {
+        return 0;
+    }
+
+    public function wireType(): Type
+    {
+        return Type::VARINT;
     }
 }

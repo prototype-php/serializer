@@ -29,7 +29,6 @@ namespace Kafkiansky\Prototype\Internal\Wire;
 
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Internal\Reflection;
-use Kafkiansky\Prototype\Internal\Reflection\Direction;
 use Kafkiansky\Prototype\PrototypeException;
 use Typhoon\Reflection\TyphoonReflector;
 
@@ -39,8 +38,8 @@ use Typhoon\Reflection\TyphoonReflector;
  * @psalm-internal Kafkiansky\Prototype
  */
 final class ProtobufMarshaller implements
-    WireSerializer,
-    WireDeserializer
+    Reflection\Serializer,
+    Reflection\Deserializer
 {
     public function __construct(
         private readonly TyphoonReflector $classReflector,
@@ -58,7 +57,7 @@ final class ProtobufMarshaller implements
     {
         $class = $this->classReflector->reflectClass($message::class);
 
-        $properties = $this->protobufReflector->properties($class, Direction::SERIALIZE);
+        $properties = $this->protobufReflector->propertySerializers($class);
 
         foreach ($properties as $num => $property) {
             /** @psalm-suppress MixedAssignment It is ok here. */
@@ -93,7 +92,7 @@ final class ProtobufMarshaller implements
 
         $object = $class->toNativeReflection()->newInstanceWithoutConstructor();
 
-        $properties = $this->protobufReflector->properties($class, Direction::DESERIALIZE);
+        $properties = $this->protobufReflector->propertyDeserializers($class);
 
         /** @psalm-var \WeakMap<Reflection\PropertyDeserializeDescriptor, ValueContext> $values */
         $values = new \WeakMap();

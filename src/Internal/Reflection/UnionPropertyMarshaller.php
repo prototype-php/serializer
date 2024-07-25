@@ -25,20 +25,63 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Exception;
+namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Prototype\PrototypeException;
+use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
- * @api
+ * @internal
+ * @psalm-internal Kafkiansky\Prototype
+ * @template T
+ * @template-implements PropertyMarshaller<T>
  */
-final class ValueIsNotSerializable extends \Exception implements PrototypeException
+final class UnionPropertyMarshaller implements PropertyMarshaller
 {
+    /**
+     * @param array<positive-int, PropertyMarshaller<T>> $deserializers
+     */
     public function __construct(
-        public readonly mixed $value,
-        public readonly string $type,
-        ?\Throwable $previous = null,
-    ) {
-        parent::__construct(\sprintf('The value of type "%s" is not serializable.', $this->type), previous: $previous);
+        private readonly array $deserializers,
+    ) {}
+
+    /**
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): mixed
+    {
+        return $this->deserializers[$tag->num]->deserializeValue(
+            $buffer,
+            $deserializer,
+            $tag,
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function default(): mixed
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isEmpty(mixed $value): bool
+    {
+        return false;
+    }
+
+    public function wireType(): Wire\Type
+    {
+        return Wire\Type::BYTES;
     }
 }

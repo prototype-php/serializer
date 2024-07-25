@@ -27,18 +27,8 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
-use Kafkiansky\Prototype\Exception\TooManyPropertyAttributes;
 use Kafkiansky\Prototype\Field;
 use Kafkiansky\Prototype\Internal;
-use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertyDeserializer;
-use Kafkiansky\Prototype\Internal\TypeConverter\ConvertToPropertySerializer;
-use Kafkiansky\Prototype\Internal\TypeConverter\NativeTypeToPropertyMarshallerConverter;
-use Kafkiansky\Prototype\Internal\TypeConverter\TypeToDeserializerConverter;
-use Kafkiansky\Prototype\Internal\TypeConverter\TypeToSerializerConverter;
-use Kafkiansky\Prototype\Internal\Wire\DeserializeUnionProperty;
-use Kafkiansky\Prototype\Internal\Wire\PropertyDeserializer;
-use Kafkiansky\Prototype\Internal\Wire\PropertySerializer;
-use Kafkiansky\Prototype\Internal\Wire\SerializeUnionProperty;
 use Kafkiansky\Prototype\PrototypeException;
 use Typhoon\DeclarationId\AnonymousClassId;
 use Typhoon\DeclarationId\NamedClassId;
@@ -47,29 +37,48 @@ use Typhoon\Reflection\ClassReflection;
 use Typhoon\Reflection\PropertyReflection;
 
 /**
- * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  */
 final class ProtobufReflector
 {
-    private readonly TypeToDeserializerConverter $typeToDeserializerConverter;
-    private readonly TypeToSerializerConverter $typeToSerializerConverter;
-
-    public function __construct()
+    /**
+     * @template T of object
+     * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
+     * @psalm-return array<positive-int, PropertySerializeDescriptor>
+     * @throws PrototypeException
+     */
+    public function propertySerializers(ClassReflection $class): array
     {
-        $this->typeToDeserializerConverter = new TypeToDeserializerConverter();
-        $this->typeToSerializerConverter = new TypeToSerializerConverter();
+        return self::properties($class, static fn (\ReflectionProperty $property, PropertyMarshaller $marshaller): PropertySerializeDescriptor => new PropertySerializeDescriptor(
+            $property,
+            $marshaller,
+        ));
     }
 
     /**
      * @template T of object
      * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
-     * @param Direction $direction
-     * @psalm-return array<positive-int, $direction is Direction::DESERIALIZE ? PropertyDeserializeDescriptor : PropertySerializeDescriptor>
+     * @psalm-return array<positive-int, PropertyDeserializeDescriptor>
      * @throws PrototypeException
      */
-    public function properties(ClassReflection $class, Direction $direction): array
+    public function propertyDeserializers(ClassReflection $class): array
+    {
+        return self::properties($class, static fn (\ReflectionProperty $property, PropertyMarshaller $marshaller): PropertyDeserializeDescriptor => new PropertyDeserializeDescriptor(
+            $property,
+            $marshaller,
+        ));
+    }
+
+    /**
+     * @template T of object
+     * @template E
+     * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
+     * @param callable(\ReflectionProperty, PropertyMarshaller): E $propertyMapper
+     * @psalm-return array<positive-int, E>
+     * @throws PrototypeException
+     */
+    private static function properties(ClassReflection $class, callable $propertyMapper): array
     {
         [$properties, $num] = [[], 0];
 
@@ -79,20 +88,6 @@ final class ProtobufReflector
         ;
 
         foreach ($classProperties as $property) {
-            /** @var list<ConvertToPropertySerializer|ConvertToPropertyDeserializer> $propertyMarshallers */
-            $propertyMarshallers = $property
-                ->attributes()
-                ->filter(static fn (AttributeReflection $attribute): bool => $attribute->class()->isInstanceOf(match ($direction) {
-                    Direction::DESERIALIZE => ConvertToPropertyDeserializer::class,
-                    Direction::SERIALIZE => ConvertToPropertySerializer::class,
-                }))
-                ->map(static fn (AttributeReflection $attribute): object => $attribute->newInstance())
-            ;
-
-            if (\count($propertyMarshallers) > 1) {
-                throw new TooManyPropertyAttributes($property->id->toString(), \count($propertyMarshallers));
-            }
-
             /** @var ?Field $field */
             $field = $property
                 ->attributes()
@@ -101,13 +96,10 @@ final class ProtobufReflector
                 ->toList()[0] ?? null
             ;
 
-            /** @var PropertyDeserializer|PropertySerializer|list<PropertyDeserializer|PropertySerializer> $propertyMarshaller */
-            $propertyMarshaller = \count($propertyMarshallers) > 0
-                ? match ($direction) {
-                    Direction::DESERIALIZE => $propertyMarshallers[0]->convertToDeserializer($this->typeToDeserializerConverter),
-                    Direction::SERIALIZE => $propertyMarshallers[0]->convertToSerializer($this->typeToSerializerConverter),
-                }
-                : $property->type()->accept(new NativeTypeToPropertyMarshallerConverter($direction))
+            /** @var PropertyMarshaller|list<PropertyMarshaller> $propertyMarshaller */
+            $propertyMarshaller = $property
+                ->type()
+                ->accept(new NativeTypeToPropertyMarshallerConverter())
             ;
 
             $fieldNum = $field?->num ?: ++$num;
@@ -133,10 +125,7 @@ final class ProtobufReflector
                 /** @psalm-var positive-int[] */
                 $fieldNum = range($fieldNum, $fieldNum + $variants - 1);
 
-                $propertyMarshaller = match ($direction) {
-                    Direction::DESERIALIZE => new DeserializeUnionProperty(array_combine($fieldNum, $propertyMarshaller)),
-                    Direction::SERIALIZE => new SerializeUnionProperty([]),
-                };
+                $propertyMarshaller = new UnionPropertyMarshaller(array_combine($fieldNum, $propertyMarshaller));
             }
 
             if (!\is_array($fieldNum)) {
@@ -144,10 +133,10 @@ final class ProtobufReflector
             }
 
             foreach ($fieldNum as $n) {
-                $properties[$n] = match ($direction) {
-                    Direction::DESERIALIZE => new PropertyDeserializeDescriptor($property->toNativeReflection(), $propertyMarshaller),
-                    Direction::SERIALIZE => new PropertySerializeDescriptor($property->toNativeReflection(), $propertyMarshaller),
-                };
+                $properties[$n] = $propertyMapper(
+                    $property->toNativeReflection(),
+                    $propertyMarshaller,
+                );
             }
         }
 

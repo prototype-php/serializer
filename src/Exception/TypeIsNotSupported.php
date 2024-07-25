@@ -36,6 +36,6 @@ final class TypeIsNotSupported extends \Exception implements PrototypeException
 {
     public function __construct(public readonly string $type, ?\Throwable $previous = null)
     {
-        parent::__construct(sprintf('The type "%s" is not supported.', $this->type), previous: $previous);
+        parent::__construct(\sprintf('The type "%s" is not supported.', $this->type), previous: $previous);
     }
 }

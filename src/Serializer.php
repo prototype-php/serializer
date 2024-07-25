@@ -28,7 +28,10 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Type\ProtobufType;
 use Kafkiansky\Prototype\Internal\Wire;
+use Psr\SimpleCache\CacheInterface;
+use Typhoon\Reflection\Cache\InMemoryCache;
 use Typhoon\Reflection\TyphoonReflector;
 
 /**
@@ -36,13 +39,16 @@ use Typhoon\Reflection\TyphoonReflector;
  */
 final class Serializer
 {
-    private readonly Wire\ProtobufMarshaller $protobuf;
+    private readonly Wire\ProtobufMarshaller $marshaller;
 
     public function __construct(
-        ?TyphoonReflector $reflector = null,
+        CacheInterface $cache = new InMemoryCache(),
     ) {
-        $this->protobuf = new Wire\ProtobufMarshaller(
-            $reflector ?: TyphoonReflector::build(),
+        $this->marshaller = new Wire\ProtobufMarshaller(
+            TyphoonReflector::build(
+                cache: $cache,
+                customTypeResolver: ProtobufType::bool,
+            ),
         );
     }
 
@@ -57,7 +63,7 @@ final class Serializer
     {
         $buffer ??= Binary\Buffer::empty(Binary\Endianness::little());
 
-        $this->protobuf->serialize($message, $buffer);
+        $this->marshaller->serialize($message, $buffer);
 
         return $buffer;
     }
@@ -72,6 +78,6 @@ final class Serializer
      */
     public function deserialize(Binary\Buffer $buffer, string $messageType): object
     {
-        return $this->protobuf->deserialize($messageType, $buffer);
+        return $this->marshaller->deserialize($messageType, $buffer);
     }
 }

@@ -28,60 +28,69 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
-use Kafkiansky\Prototype\PrototypeException;
+use Kafkiansky\Prototype\Internal\Wire;
 
 /**
- * @api
  * @internal
- * @template-covariant T
  * @psalm-internal Kafkiansky\Prototype
+ * @template T of object
+ * @template-implements PropertyMarshaller<T>
  */
-final class PropertyDeserializeDescriptor
+final class ObjectPropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @param PropertyMarshaller<T> $setter
+     * @param class-string<T> $messageType
      */
     public function __construct(
-        private readonly \ReflectionProperty $property,
-        private readonly PropertyMarshaller $setter,
+        private readonly string $messageType,
     ) {}
 
     /**
-     * @return ?T
-     * @throws PrototypeException
+     * {@inheritdoc}
+     */
+    public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): object
+    {
+        return $deserializer->deserialize(
+            $this->messageType,
+            $buffer->split(
+                $buffer->consumeVarUint(),
+            ),
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $serializer->serialize($value, $objectBuffer = $buffer->clone());
+
+        if (!$objectBuffer->isEmpty()) {
+            $buffer
+                ->writeVarUint($objectBuffer->count())
+                ->write($objectBuffer->reset())
+            ;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function default(): mixed
     {
-        return $this->setter->default();
+        return null;
     }
 
     /**
-     * @return T
-     * @throws Binary\BinaryException
-     * @throws \ReflectionException
-     * @throws PrototypeException
+     * {@inheritdoc}
      */
-    public function readValue(Binary\Buffer $buffer, Deserializer $deserializer, Tag $tag): mixed
+    public function isEmpty(mixed $value): bool
     {
-        return $this->setter->deserializeValue($buffer, $deserializer, $tag);
+        return false;
     }
 
-    /**
-     * @template TClass of object
-     * @param TClass $object
-     */
-    public function setValue(object $object, mixed $value): void
+    public function wireType(): Wire\Type
     {
-        $this->property->setValue($object, $value);
-    }
-
-    /**
-     * @template TClass of object
-     * @param TClass $object
-     */
-    public function isInitialized(object $object): bool
-    {
-        return $this->property->isInitialized($object);
+        return Wire\Type::BYTES;
     }
 }

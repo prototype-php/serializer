@@ -39,6 +39,6 @@ final class TooManyPropertyAttributes extends \Exception implements PrototypeExc
         public readonly int $attributesCount,
         ?\Throwable $previous = null,
     ) {
-        parent::__construct(sprintf('The property "%s" has too many property marshaller attributes: %d.', $this->propertyName, $this->attributesCount), previous: $previous);
+        parent::__construct(\sprintf('The property "%s" has too many property marshaller attributes: %d.', $this->propertyName, $this->attributesCount), previous: $previous);
     }
 }

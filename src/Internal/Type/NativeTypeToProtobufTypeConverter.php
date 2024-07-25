@@ -25,63 +25,68 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Reflection;
+namespace Kafkiansky\Prototype\Internal\Type;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Wire\Tag;
+use Kafkiansky\Prototype\Exception\TypeIsNotSupported;
 use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\DeclarationId\NamedClassId;
+use Typhoon\Type\Type;
+use Typhoon\Type\Visitor\DefaultTypeVisitor;
+use function Typhoon\Type\stringify;
 
 /**
- * @api
  * @internal
- * @template-covariant T
  * @psalm-internal Kafkiansky\Prototype
+ * @template-extends DefaultTypeVisitor<TypeSerializer>
  */
-final class PropertyDeserializeDescriptor
+final class NativeTypeToProtobufTypeConverter extends DefaultTypeVisitor
 {
     /**
-     * @param PropertyMarshaller<T> $setter
+     * {@inheritdoc}
      */
-    public function __construct(
-        private readonly \ReflectionProperty $property,
-        private readonly PropertyMarshaller $setter,
-    ) {}
-
-    /**
-     * @return ?T
-     * @throws PrototypeException
-     */
-    public function default(): mixed
+    public function string(Type $type): StringType
     {
-        return $this->setter->default();
+        return new StringType();
     }
 
     /**
-     * @return T
-     * @throws Binary\BinaryException
+     * {@inheritdoc}
+     */
+    public function mixed(Type $type): ValueType
+    {
+        return new ValueType();
+    }
+
+    /**
+     * @throws PrototypeException
      * @throws \ReflectionException
-     * @throws PrototypeException
      */
-    public function readValue(Binary\Buffer $buffer, Deserializer $deserializer, Tag $tag): mixed
+    public function namedObject(Type $type, NamedClassId $classId, array $typeArguments): TypeSerializer
     {
-        return $this->setter->deserializeValue($buffer, $deserializer, $tag);
+        if ($classId->reflect()->implementsInterface(TypeSerializer::class)) {
+            /** @var TypeSerializer */
+            return $classId->reflect()->newInstanceWithoutConstructor();
+        }
+
+        return $this->default($type);
     }
 
     /**
-     * @template TClass of object
-     * @param TClass $object
+     * {@inheritdoc}
      */
-    public function setValue(object $object, mixed $value): void
+    public function float(Type $type, ?float $min, ?float $max): FloatType|DoubleType
     {
-        $this->property->setValue($object, $value);
+        return match (true) {
+            $min === -1.7976931348623157E+308 && $max === 1.7976931348623157E+308 => new DoubleType(),
+            default => new FloatType(),
+        };
     }
 
     /**
-     * @template TClass of object
-     * @param TClass $object
+     * @throws TypeIsNotSupported
      */
-    public function isInitialized(object $object): bool
+    protected function default(Type $type): TypeSerializer
     {
-        return $this->property->isInitialized($object);
+        throw new TypeIsNotSupported(stringify($type));
     }
 }
