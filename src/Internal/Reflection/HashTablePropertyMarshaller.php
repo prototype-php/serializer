@@ -84,7 +84,7 @@ final class HashTablePropertyMarshaller implements PropertyMarshaller
 
             $mapKeyValueBuffer = $buffer->clone();
 
-            $keyTag = new Wire\Tag(1, $this->keyMarshaller->labels()[Labels::type]);
+            $keyTag = new Wire\Tag(1, $this->keyMarshaller->labels()[Labels::wireType]);
             $keyTag->encode($mapKeyValueBuffer);
 
             $this->keyMarshaller->serializeValue(
@@ -94,7 +94,7 @@ final class HashTablePropertyMarshaller implements PropertyMarshaller
                 $keyTag,
             );
 
-            $valueTag = new Wire\Tag(2, $this->valueMarshaller->labels()[Labels::type]);
+            $valueTag = new Wire\Tag(2, $this->valueMarshaller->labels()[Labels::wireType]);
             $valueTag->encode($mapKeyValueBuffer);
 
             $this->valueMarshaller->serializeValue(
@@ -109,6 +109,14 @@ final class HashTablePropertyMarshaller implements PropertyMarshaller
                 ->write($mapKeyValueBuffer->reset())
             ;
         }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function matchValue(mixed $value): bool
+    {
+        return \is_array($value);
     }
 
     /**

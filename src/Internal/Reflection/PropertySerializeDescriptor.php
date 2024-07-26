@@ -44,7 +44,7 @@ final class PropertySerializeDescriptor
      * @param PropertyMarshaller<T> $serializer
      */
     public function __construct(
-        private readonly \ReflectionProperty $property,
+        public readonly \ReflectionProperty $property,
         private readonly PropertyMarshaller $serializer,
     ) {}
 
@@ -75,9 +75,9 @@ final class PropertySerializeDescriptor
     /**
      * @throws PrototypeException
      */
-    public function protobufType(): Type
+    public function wireType(): Type
     {
-        return $this->serializer->labels()[Labels::type];
+        return $this->serializer->labels()[Labels::wireType];
     }
 
     /**

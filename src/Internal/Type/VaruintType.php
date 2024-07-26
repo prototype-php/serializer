@@ -63,6 +63,7 @@ final class VaruintType implements TypeSerializer
         return Labels::new(Type::VARINT)
             ->with(Labels::default, 0)
             ->with(Labels::packed, true)
+            ->with(Labels::schemaType, ProtobufType::uint64)
             ;
     }
 }

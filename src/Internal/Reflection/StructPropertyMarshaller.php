@@ -79,6 +79,14 @@ final class StructPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
+    public function matchValue(mixed $value): bool
+    {
+        return \is_array($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function labels(): TypedMap
     {
         return Labels::new(Wire\Type::BYTES)

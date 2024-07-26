@@ -31,6 +31,11 @@ interface PropertyMarshaller
     public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): mixed;
 
     /**
+     * @psalm-assert-if-true T $value
+     */
+    public function matchValue(mixed $value): bool;
+
+    /**
      * @throws PrototypeException
      */
     public function labels(): TypedMap;

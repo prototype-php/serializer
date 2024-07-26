@@ -63,6 +63,7 @@ final class FixedUint64Type implements TypeSerializer
         return Labels::new(Type::FIXED64)
             ->with(Labels::default, 0)
             ->with(Labels::packed, true)
+            ->with(Labels::schemaType, ProtobufType::uint64)
             ;
     }
 }

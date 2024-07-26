@@ -37,14 +37,15 @@ use Typhoon\TypedMap\TypedMap;
 enum Labels
 {
     public const default = LabelDefault::key;
-    public const type = LabelType::key;
+    public const wireType = LabelWireType::key;
+    public const schemaType = LabelSchemaType::key;
     public const packed = LabelPacked::key;
     public const isEmpty = LabelIsEmpty::key;
 
     public static function new(Type $type): TypedMap
     {
         return (new TypedMap())
-            ->with(self::type, $type)
+            ->with(self::wireType, $type)
             ;
     }
 }

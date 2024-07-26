@@ -60,6 +60,7 @@ final class StringType implements TypeSerializer
     {
         return Labels::new(Type::BYTES)
             ->with(Labels::default, '')
+            ->with(Labels::schemaType, ProtobufType::string)
             ;
     }
 }

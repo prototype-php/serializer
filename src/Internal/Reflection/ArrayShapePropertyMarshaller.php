@@ -92,7 +92,7 @@ final class ArrayShapePropertyMarshaller implements PropertyMarshaller
         /** @psalm-suppress MixedAssignment */
         foreach ($value as $key => $val) {
             $num = $this->serializersNums[$key];
-            $fieldTag = new Wire\Tag($num, $this->marshallers[$key]->labels()[Labels::type]);
+            $fieldTag = new Wire\Tag($num, $this->marshallers[$key]->labels()[Labels::wireType]);
             $fieldTag->encode($shapeBuffer);
             $this->marshallers[$key]->serializeValue($shapeBuffer, $serializer, $val, $fieldTag);
         }
@@ -103,6 +103,14 @@ final class ArrayShapePropertyMarshaller implements PropertyMarshaller
                 ->write($shapeBuffer->reset())
             ;
         }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function matchValue(mixed $value): bool
+    {
+        return \is_array($value);
     }
 
     /**

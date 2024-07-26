@@ -36,7 +36,7 @@ use Typhoon\TypedMap\Key;
  * @psalm-immutable
  * @template-implements Key<Type>
  */
-enum LabelType implements Key
+enum LabelWireType implements Key
 {
     case key;
 }

@@ -41,10 +41,10 @@ use Typhoon\TypedMap\TypedMap;
 final class UnionPropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @param array<positive-int, PropertyMarshaller<T>> $deserializers
+     * @param array<positive-int, PropertyMarshaller<T>> $marshallers
      */
     public function __construct(
-        private readonly array $deserializers,
+        private readonly array $marshallers,
     ) {}
 
     /**
@@ -52,7 +52,7 @@ final class UnionPropertyMarshaller implements PropertyMarshaller
      */
     public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): mixed
     {
-        return $this->deserializers[$tag->num]->deserializeValue(
+        return $this->marshallers[$tag->num]->deserializeValue(
             $buffer,
             $deserializer,
             $tag,
@@ -64,6 +64,17 @@ final class UnionPropertyMarshaller implements PropertyMarshaller
      */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
+        if ($this->marshallers[$tag->num]->matchValue($value)) {
+            $this->marshallers[$tag->num]->serializeValue($buffer, $serializer, $value, $tag);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function matchValue(mixed $value): bool
+    {
+        return false;
     }
 
     /**

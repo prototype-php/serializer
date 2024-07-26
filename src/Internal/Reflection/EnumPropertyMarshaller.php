@@ -81,6 +81,14 @@ final class EnumPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
+    public function matchValue(mixed $value): bool
+    {
+        return $value instanceof $this->enumName;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function labels(): TypedMap
     {
         return $this->type->labels()

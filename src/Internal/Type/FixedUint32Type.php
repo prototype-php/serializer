@@ -63,6 +63,7 @@ final class FixedUint32Type implements TypeSerializer
         return Labels::new(Type::FIXED32)
             ->with(Labels::default, 0)
             ->with(Labels::packed, true)
+            ->with(Labels::schemaType, ProtobufType::uint32)
             ;
     }
 }

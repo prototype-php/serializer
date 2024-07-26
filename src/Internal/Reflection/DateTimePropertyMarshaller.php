@@ -86,6 +86,14 @@ final class DateTimePropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
+    public function matchValue(mixed $value): bool
+    {
+        return $value instanceof \DateTimeInterface;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function labels(): TypedMap
     {
         return Labels::new(Wire\Type::BYTES);

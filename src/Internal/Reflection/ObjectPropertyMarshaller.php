@@ -78,6 +78,14 @@ final class ObjectPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
+    public function matchValue(mixed $value): bool
+    {
+        return $value instanceof $this->messageType;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function labels(): TypedMap
     {
         return Labels::new(Wire\Type::BYTES);

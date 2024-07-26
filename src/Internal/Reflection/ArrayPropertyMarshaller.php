@@ -97,12 +97,20 @@ final class ArrayPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
+    public function matchValue(mixed $value): bool
+    {
+        return \is_array($value) && array_is_list($value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function labels(): TypedMap
     {
         $labels = $this->marshaller->labels();
 
         if ($labels[Labels::packed]) {
-            $labels = $labels->with(Labels::type, Wire\Type::BYTES);
+            $labels = $labels->with(Labels::wireType, Wire\Type::BYTES);
         }
 
         return $labels

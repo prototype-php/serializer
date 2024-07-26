@@ -83,6 +83,14 @@ final class DateIntervalPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
+    public function matchValue(mixed $value): bool
+    {
+        return $value instanceof \DateInterval;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function labels(): TypedMap
     {
         return Labels::new(Wire\Type::BYTES);

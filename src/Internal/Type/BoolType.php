@@ -61,6 +61,7 @@ final class BoolType implements TypeSerializer
         return Labels::new(Type::VARINT)
             ->with(Labels::default, false)
             ->with(Labels::packed, true)
+            ->with(Labels::schemaType, ProtobufType::bool)
             ;
     }
 }

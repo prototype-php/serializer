@@ -29,6 +29,7 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Internal\Label\Labels;
+use Kafkiansky\Prototype\Internal\Type\ProtobufType;
 use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
 use Kafkiansky\Prototype\Internal\Wire;
 use Typhoon\TypedMap\TypedMap;
@@ -62,6 +63,20 @@ final class ScalarPropertyMarshaller implements PropertyMarshaller
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
         $this->type->writeTo($buffer, $value);
+    }
+
+    public function matchValue(mixed $value): bool
+    {
+        $schemaType = $this->type->labels()[Labels::schemaType];
+
+        return match ($schemaType) {
+            ProtobufType::string,
+            ProtobufType::bytes  => \is_string($value),
+            ProtobufType::bool   => \is_bool($value),
+            ProtobufType::float,
+            ProtobufType::double => \is_float($value),
+            default              => \is_int($value),
+        };
     }
 
     /**
