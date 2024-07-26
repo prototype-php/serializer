@@ -519,3 +519,129 @@ final class Interview
         );
     }
 }
+
+final class NestedMessage
+{
+    /**
+     * @param int32 $nested_id
+     * @param list<int32> $values
+     */
+    public function __construct(
+        public readonly int $nested_id,
+        public readonly string $nested_name,
+        public readonly array $values,
+    ) {}
+}
+
+final class AnotherNestedMessage
+{
+    /**
+     * @param array<string, mixed> $additional_data
+     * @param array<string, string> $additional_map
+     */
+    public function __construct(
+        public readonly \DateTimeInterface $timestamp,
+        public readonly array $additional_data,
+        public readonly array $additional_map,
+    ) {}
+}
+
+final class DurationMessage
+{
+    public function __construct(
+        public readonly \DateInterval $duration,
+    ) {}
+}
+
+#[ProtobufMessage(path: 'resources/complex_message.bin', constructorFunction: 'withNestedMessageString')]
+final class ComplexMessage
+{
+    /**
+     * @param int32 $id
+     * @param int64 $big_id
+     * @param uint32 $unsigned_id
+     * @param uint64 $unsigned_big_id
+     * @param sint32 $signed_id
+     * @param sint64 $signed_big_id
+     * @param fixed32 $fixed_id
+     * @param fixed64 $fixed_big_id
+     * @param sfixed32 $signed_fixed_id
+     * @param sfixed64 $signed_fixed_big_id
+     * @param double $double_value
+     * @param bytes $data
+     * @param list<string> $tags
+     * @param array<string, int32> $metadata
+     * @param array<string, mixed> $properties
+     * @param string|int32|NestedMessage|\DateTimeInterface $special_field
+     * @param list<AnotherNestedMessage> $another_nested_messages
+     */
+    public function __construct(
+        public readonly int $id,
+        public readonly int $big_id,
+        public readonly int $unsigned_id,
+        public readonly int $unsigned_big_id,
+        public readonly int $signed_id,
+        public readonly int $signed_big_id,
+        public readonly int $fixed_id,
+        public readonly int $fixed_big_id,
+        public readonly int $signed_fixed_id,
+        public readonly int $signed_fixed_big_id,
+        public readonly float $float_value,
+        public readonly float $double_value,
+        public readonly bool $is_active,
+        public readonly string $name,
+        public readonly string $data,
+        public readonly array $tags,
+        public readonly array $metadata,
+        public readonly array $properties,
+        public readonly ?\DateTimeInterface $created_at = null,
+        public readonly ?\DateInterval $valid_for = null,
+        public readonly ?NestedMessage $nested_message = null,
+        public readonly null|string|int|NestedMessage|\DateTimeInterface $special_field = null,
+        public readonly array $another_nested_messages = [],
+        public readonly ?DurationMessage $duration_message = null,
+    ) {}
+
+    public static function withNestedMessageString(): self
+    {
+        $time = \DateTimeImmutable::createFromFormat('U.u', \sprintf('%d.%d', 1720809416, 679224));
+        \assert($time instanceof \DateTimeImmutable);
+
+        return new self(
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11.199999809265137,
+            12.4,
+            true,
+            'kafkiansky',
+            'raw bytes',
+            ['php', 'proto'],
+            ['x' => 200],
+            ['enabled' => true],
+            $time,
+            new \DateInterval('PT10S'),
+            new NestedMessage(
+                200,
+                'kek0',
+                [1, 2, 3],
+            ),
+            'lol',
+            [
+                new AnotherNestedMessage(
+                    $time,
+                    ['releaseDate' => null],
+                    ['x' => 'y'],
+                ),
+            ],
+            new DurationMessage(new \DateInterval('PT60S')),
+        );
+    }
+}
