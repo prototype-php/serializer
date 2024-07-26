@@ -28,6 +28,7 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary\Buffer;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Tag;
 use Kafkiansky\Prototype\Internal\Wire\Type;
 use Kafkiansky\Prototype\PrototypeException;
@@ -62,15 +63,22 @@ final class PropertySerializeDescriptor
     /**
      * @param T $value
      * @throws PrototypeException
+     * @psalm-suppress MixedArgumentTypeCoercion
      */
     public function isNotEmpty(mixed $value): bool
     {
-        return null !== $value && !$this->serializer->isEmpty($value);
+        /** @var callable(mixed): bool $isEmpty */
+        $isEmpty = $this->serializer->labels()[Labels::isEmpty];
+
+        return null !== $value && !$isEmpty($value);
     }
 
+    /**
+     * @throws PrototypeException
+     */
     public function protobufType(): Type
     {
-        return $this->serializer->wireType();
+        return $this->serializer->labels()[Labels::type];
     }
 
     /**

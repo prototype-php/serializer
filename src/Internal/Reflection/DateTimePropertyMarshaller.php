@@ -29,19 +29,20 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Type\TimestampType;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @template T of \DateTimeInterface
- * @template-implements PropertyMarshaller<T>
+ * @template-implements PropertyMarshaller<\DateTimeInterface>
  */
 final class DateTimePropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @psalm-param class-string<T>|interface-string<T> $dateTimeClass
+     * @psalm-param class-string<\DateTimeInterface>|interface-string<\DateTimeInterface> $dateTimeClass
      */
     public function __construct(
         private readonly string $dateTimeClass,
@@ -71,6 +72,7 @@ final class DateTimePropertyMarshaller implements PropertyMarshaller
      */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
+        /** @psalm-suppress ArgumentTypeCoercion */
         $serializer->serialize(new TimestampType($value->getTimestamp(), (int) $value->format('u') * 1000), $objectBuffer = $buffer->clone());
 
         if (!$objectBuffer->isEmpty()) {
@@ -84,21 +86,8 @@ final class DateTimePropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): mixed
+    public function labels(): TypedMap
     {
-        return null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function isEmpty(mixed $value): bool
-    {
-        return false;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return Wire\Type::BYTES;
+        return Labels::new(Wire\Type::BYTES);
     }
 }

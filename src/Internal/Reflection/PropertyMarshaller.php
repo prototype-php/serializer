@@ -7,6 +7,7 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Internal\Wire;
 use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @template T
@@ -30,16 +31,7 @@ interface PropertyMarshaller
     public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): mixed;
 
     /**
-     * @return ?T
      * @throws PrototypeException
      */
-    public function default(): mixed;
-
-    /**
-     * @param T $value
-     * @throws PrototypeException
-     */
-    public function isEmpty(mixed $value): bool;
-
-    public function wireType(): Wire\Type;
+    public function labels(): TypedMap;
 }

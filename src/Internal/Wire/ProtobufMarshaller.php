@@ -33,7 +33,6 @@ use Kafkiansky\Prototype\PrototypeException;
 use Typhoon\Reflection\TyphoonReflector;
 
 /**
- * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  */
@@ -41,10 +40,13 @@ final class ProtobufMarshaller implements
     Reflection\Serializer,
     Reflection\Deserializer
 {
+    private readonly Reflection\ProtobufReflector $protobufReflector;
+
     public function __construct(
         private readonly TyphoonReflector $classReflector,
-        private readonly Reflection\ProtobufReflector $protobufReflector = new Reflection\ProtobufReflector(),
-    ) {}
+    ) {
+        $this->protobufReflector = new Reflection\ProtobufReflector();
+    }
 
     /**
      * @template T of object
@@ -121,9 +123,11 @@ final class ProtobufMarshaller implements
         // We could do it in one loop, but we have unions that refer to the same `\ReflectionProperty`,
         // and if the required unit variant serialized in the protobuf is not the first one in the schema,
         // we will set it to a default value (which is null), which we cannot change later for `readonly` properties.
+        // We also use `setDefault` to set nullable fields to null instead of the default value,
+        // so that we can distinguish between a real value and no value.
         foreach ($properties as $property) {
             if (!$property->isInitialized($object)) {
-                $property->setValue($object, $property->default());
+                $property->setDefault($object, $property->default());
             }
         }
 

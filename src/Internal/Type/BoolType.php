@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Type;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -54,16 +56,11 @@ final class BoolType implements TypeSerializer
         $buffer->writeVarUint((int)$value);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function default(): bool
+    public function labels(): TypedMap
     {
-        return false;
-    }
-
-    public function wireType(): Type
-    {
-        return Type::VARINT;
+        return Labels::new(Type::VARINT)
+            ->with(Labels::default, false)
+            ->with(Labels::packed, true)
+            ;
     }
 }

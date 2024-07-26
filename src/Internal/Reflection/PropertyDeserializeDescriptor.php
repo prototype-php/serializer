@@ -28,6 +28,7 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Tag;
 use Kafkiansky\Prototype\PrototypeException;
 
@@ -40,11 +41,11 @@ use Kafkiansky\Prototype\PrototypeException;
 final class PropertyDeserializeDescriptor
 {
     /**
-     * @param PropertyMarshaller<T> $setter
+     * @param PropertyMarshaller<T> $marshaller
      */
     public function __construct(
         private readonly \ReflectionProperty $property,
-        private readonly PropertyMarshaller $setter,
+        private readonly PropertyMarshaller $marshaller,
     ) {}
 
     /**
@@ -53,7 +54,7 @@ final class PropertyDeserializeDescriptor
      */
     public function default(): mixed
     {
-        return $this->setter->default();
+        return $this->marshaller->labels()[Labels::default];
     }
 
     /**
@@ -64,7 +65,7 @@ final class PropertyDeserializeDescriptor
      */
     public function readValue(Binary\Buffer $buffer, Deserializer $deserializer, Tag $tag): mixed
     {
-        return $this->setter->deserializeValue($buffer, $deserializer, $tag);
+        return $this->marshaller->deserializeValue($buffer, $deserializer, $tag);
     }
 
     /**
@@ -74,6 +75,15 @@ final class PropertyDeserializeDescriptor
     public function setValue(object $object, mixed $value): void
     {
         $this->property->setValue($object, $value);
+    }
+
+    /**
+     * @template TClass of object
+     * @param TClass $object
+     */
+    public function setDefault(object $object, mixed $value): void
+    {
+        $this->setValue($object, $this->property->getType()?->allowsNull() ? null : $value);
     }
 
     /**

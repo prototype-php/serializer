@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -82,7 +84,7 @@ final class HashTablePropertyMarshaller implements PropertyMarshaller
 
             $mapKeyValueBuffer = $buffer->clone();
 
-            $keyTag = new Wire\Tag(1, $this->keyMarshaller->wireType());
+            $keyTag = new Wire\Tag(1, $this->keyMarshaller->labels()[Labels::type]);
             $keyTag->encode($mapKeyValueBuffer);
 
             $this->keyMarshaller->serializeValue(
@@ -92,7 +94,7 @@ final class HashTablePropertyMarshaller implements PropertyMarshaller
                 $keyTag,
             );
 
-            $valueTag = new Wire\Tag(2, $this->valueMarshaller->wireType());
+            $valueTag = new Wire\Tag(2, $this->valueMarshaller->labels()[Labels::type]);
             $valueTag->encode($mapKeyValueBuffer);
 
             $this->valueMarshaller->serializeValue(
@@ -112,21 +114,11 @@ final class HashTablePropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): iterable
+    public function labels(): TypedMap
     {
-        return [];
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function isEmpty(mixed $value): bool
-    {
-        return [] === $value;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return Wire\Type::BYTES;
+        return Labels::new(Wire\Type::BYTES)
+            ->with(Labels::default, [])
+            ->with(Labels::isEmpty, static fn (array $values): bool => [] === $values)
+            ;
     }
 }

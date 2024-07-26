@@ -74,11 +74,11 @@ final class ProtobufReflector
      * @template T of object
      * @template E
      * @param ClassReflection<T, NamedClassId<class-string<T>>|AnonymousClassId<class-string<T>>> $class
-     * @param callable(\ReflectionProperty, PropertyMarshaller): E $propertyMapper
+     * @param callable(\ReflectionProperty, PropertyMarshaller): E $toPropertyDescriptor
      * @psalm-return array<positive-int, E>
      * @throws PrototypeException
      */
-    private static function properties(ClassReflection $class, callable $propertyMapper): array
+    private static function properties(ClassReflection $class, callable $toPropertyDescriptor): array
     {
         [$properties, $num] = [[], 0];
 
@@ -133,7 +133,7 @@ final class ProtobufReflector
             }
 
             foreach ($fieldNum as $n) {
-                $properties[$n] = $propertyMapper(
+                $properties[$n] = $toPropertyDescriptor(
                     $property->toNativeReflection(),
                     $propertyMarshaller,
                 );

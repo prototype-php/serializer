@@ -25,42 +25,26 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Internal\Label;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Type;
 use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @psalm-consistent-constructor
- * @template-implements TypeSerializer<float>
  */
-final class FloatType implements TypeSerializer
+enum Labels
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function writeTo(Binary\Buffer $buffer, mixed $value): void
-    {
-        $buffer->writeFloat($value);
-    }
+    public const default = LabelDefault::key;
+    public const type = LabelType::key;
+    public const packed = LabelPacked::key;
+    public const isEmpty = LabelIsEmpty::key;
 
-    /**
-     * {@inheritdoc}
-     */
-    public function readFrom(Binary\Buffer $buffer): float
+    public static function new(Type $type): TypedMap
     {
-        return $buffer->consumeFloat();
-    }
-
-    public function labels(): TypedMap
-    {
-        return Labels::new(Type::VARINT)
-            ->with(Labels::default, 0)
-            ->with(Labels::packed, true)
+        return (new TypedMap())
+            ->with(self::type, $type)
             ;
     }
 }

@@ -30,9 +30,11 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\EnumDoesNotContainVariant;
 use Kafkiansky\Prototype\Exception\EnumDoesNotContainZeroVariant;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
 use Kafkiansky\Prototype\Internal\Type\VaruintType;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -68,9 +70,13 @@ final class EnumPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): mixed
+    public function labels(): TypedMap
     {
-        return $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName);
+        return Labels::new($this->type->labels()[Labels::type])
+            ->with(Labels::default, $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName))
+            ->with(Labels::packed, true)
+            ->with(Labels::isEmpty, static fn (\BackedEnum $enum): bool => 0 === $enum->value)
+            ;
     }
 
     /**
@@ -82,18 +88,5 @@ final class EnumPropertyMarshaller implements PropertyMarshaller
         $variant = $value->value;
 
         $this->type->writeTo($buffer, $variant);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function isEmpty(mixed $value): bool
-    {
-        return 0 === $value->value;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return $this->type->wireType();
     }
 }

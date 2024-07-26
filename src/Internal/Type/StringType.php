@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Type;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -54,16 +56,10 @@ final class StringType implements TypeSerializer
         return $buffer->consume($buffer->consumeVarUint());
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function default(): string
+    public function labels(): TypedMap
     {
-        return '';
-    }
-
-    public function wireType(): Type
-    {
-        return Type::BYTES;
+        return Labels::new(Type::BYTES)
+            ->with(Labels::default, '')
+            ;
     }
 }

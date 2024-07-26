@@ -65,12 +65,11 @@ final class NativeTypeToPropertyMarshallerConverter extends DefaultTypeVisitor
         /** @psalm-suppress MixedArgumentTypeCoercion */
         return match (true) {
             \count($elements) > 0 => new ArrayShapePropertyMarshaller(
-                    array_merge(
-                        ...array_map(
-                        function (int|string $name, ShapeElement $element): array {
-                            /** @var array<non-empty-string, PropertyMarshaller<mixed>> */
-                            return [(string) $name => $element->type->accept($this)];
-                        },
+                array_merge(
+                    ...array_map(
+                        fn (int|string $name, ShapeElement $element): array => /** @var array<non-empty-string, PropertyMarshaller<mixed>> */ [
+                            (string) $name => $element->type->accept($this),
+                        ],
                         array_keys($elements),
                         $elements,
                     ),
@@ -90,8 +89,8 @@ final class NativeTypeToPropertyMarshallerConverter extends DefaultTypeVisitor
     public function namedObject(Type $type, NamedClassId $classId, array $typeArguments): PropertyMarshaller
     {
         try {
-            return new ScalarPropertyMarshaller($this->nativeTypeToProtobufTypeConverter->namedObject($type, $classId, $typeArguments));
-        } catch (PrototypeException|\ReflectionException) {
+            return new ScalarPropertyMarshaller($type->accept($this->nativeTypeToProtobufTypeConverter));
+        } catch (\Throwable) {
             return typeStringToPropertyMarshaller($classId->name);
         }
     }

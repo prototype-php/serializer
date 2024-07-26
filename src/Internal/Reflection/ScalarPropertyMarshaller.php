@@ -28,8 +28,10 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -54,12 +56,16 @@ final class ScalarPropertyMarshaller implements PropertyMarshaller
         return $this->type->readFrom($buffer);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function default(): mixed
+    public function labels(): TypedMap
     {
-        return $this->type->default();
+        return $this->type
+            ->labels()
+            ->with(Labels::isEmpty, static fn (mixed $value): bool => 0 === $value
+                || 0.0 === $value
+                || false === $value
+                || '' === $value,
+            )
+            ;
     }
 
     /**
@@ -68,23 +74,5 @@ final class ScalarPropertyMarshaller implements PropertyMarshaller
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
         $this->type->writeTo($buffer, $value);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function isEmpty(mixed $value): bool
-    {
-        /** @psalm-suppress DocblockTypeContradiction */
-        return 0 === $value
-            || 0.0 === $value
-            || false === $value
-            || '' === $value
-            ;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return $this->type->wireType();
     }
 }

@@ -29,8 +29,10 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\PropertyValueIsInvalid;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Type\DurationType;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -58,6 +60,7 @@ final class DateIntervalPropertyMarshaller implements PropertyMarshaller
      */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
+        /** @psalm-suppress ArgumentTypeCoercion */
         $serializer->serialize(
             new DurationType(
                 $value->days * 24 * 60 * 60 +
@@ -80,21 +83,8 @@ final class DateIntervalPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): mixed
+    public function labels(): TypedMap
     {
-        return null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function isEmpty(mixed $value): bool
-    {
-        return false;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return Wire\Type::BYTES;
+        return Labels::new(Wire\Type::BYTES);
     }
 }

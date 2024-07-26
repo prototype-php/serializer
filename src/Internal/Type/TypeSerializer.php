@@ -6,7 +6,7 @@ namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\PrototypeException;
-use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -30,10 +30,5 @@ interface TypeSerializer
      */
     public function readFrom(Binary\Buffer $buffer): mixed;
 
-    /**
-     * @return T
-     */
-    public function default(): mixed;
-
-    public function wireType(): Wire\Type;
+    public function labels(): TypedMap;
 }
