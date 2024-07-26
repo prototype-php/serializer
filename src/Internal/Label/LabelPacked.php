@@ -25,45 +25,26 @@
 
 declare(strict_types=1);
 
-namespace Kafkiansky\Prototype\Internal\Type;
+namespace Kafkiansky\Prototype\Internal\Label;
 
-use Kafkiansky\Binary;
-use Kafkiansky\Prototype\Internal\Label\Labels;
-use Kafkiansky\Prototype\Internal\Wire\Type;
+use Typhoon\TypedMap\OptionalKey;
 use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
  * @psalm-internal Kafkiansky\Prototype
- * @psalm-consistent-constructor
- * @psalm-type FixedUint32 = int<0, 4294967295>
- * @template-implements TypeSerializer<FixedUint32>
+ * @psalm-immutable
+ * @template-implements OptionalKey<bool>
  */
-final class FixedUint32Type implements TypeSerializer
+enum LabelPacked implements OptionalKey
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function writeTo(Binary\Buffer $buffer, mixed $value): void
-    {
-        $buffer->writeUint32($value);
-    }
+    case key;
 
     /**
      * {@inheritdoc}
      */
-    public function readFrom(Binary\Buffer $buffer): int
+    public function default(TypedMap $map): bool
     {
-        /** @var FixedUint32 */
-        return $buffer->consumeUint32();
-    }
-
-    public function labels(): TypedMap
-    {
-        return Labels::new(Type::FIXED32)
-            ->with(Labels::default, 0)
-            ->with(Labels::packed, true)
-            ->with(Labels::schemaType, ProtobufType::uint32)
-            ;
+        return false;
     }
 }

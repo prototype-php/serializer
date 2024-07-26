@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -90,7 +92,7 @@ final class ArrayShapePropertyMarshaller implements PropertyMarshaller
         /** @psalm-suppress MixedAssignment */
         foreach ($value as $key => $val) {
             $num = $this->serializersNums[$key];
-            $fieldTag = new Wire\Tag($num, $this->marshallers[$key]->wireType());
+            $fieldTag = new Wire\Tag($num, $this->marshallers[$key]->labels()[Labels::wireType]);
             $fieldTag->encode($shapeBuffer);
             $this->marshallers[$key]->serializeValue($shapeBuffer, $serializer, $val, $fieldTag);
         }
@@ -106,22 +108,20 @@ final class ArrayShapePropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): iterable
+    public function matchValue(mixed $value): bool
     {
-        return [];
+        return \is_array($value);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function isEmpty(mixed $value): bool
+    public function labels(): TypedMap
     {
-        return [] === $value;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return Wire\Type::BYTES;
+        return Labels::new(Wire\Type::BYTES)
+            ->with(Labels::default, [])
+            ->with(Labels::isEmpty, static fn (array $values): bool => [] === $values)
+            ;
     }
 
     /**

@@ -30,9 +30,11 @@ namespace Kafkiansky\Prototype\Internal\Reflection;
 use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\EnumDoesNotContainVariant;
 use Kafkiansky\Prototype\Exception\EnumDoesNotContainZeroVariant;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
 use Kafkiansky\Prototype\Internal\Type\VaruintType;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -68,14 +70,6 @@ final class EnumPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): mixed
-    {
-        return $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
         /** @var int<0, max> $variant */
@@ -87,13 +81,19 @@ final class EnumPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function isEmpty(mixed $value): bool
+    public function matchValue(mixed $value): bool
     {
-        return 0 === $value->value;
+        return $value instanceof $this->enumName;
     }
 
-    public function wireType(): Wire\Type
+    /**
+     * {@inheritdoc}
+     */
+    public function labels(): TypedMap
     {
-        return $this->type->wireType();
+        return $this->type->labels()
+            ->with(Labels::default, $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName))
+            ->with(Labels::isEmpty, static fn (\BackedEnum $enum): bool => 0 === $enum->value)
+            ;
     }
 }

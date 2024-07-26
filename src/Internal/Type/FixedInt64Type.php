@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Type;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -55,16 +57,12 @@ final class FixedInt64Type implements TypeSerializer
         return $buffer->consumeInt64();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function default(): int
+    public function labels(): TypedMap
     {
-        return 0;
-    }
-
-    public function wireType(): Type
-    {
-        return Type::FIXED64;
+        return Labels::new(Type::FIXED64)
+            ->with(Labels::default, 0)
+            ->with(Labels::packed, true)
+            ->with(Labels::schemaType, ProtobufType::sfixed64)
+            ;
     }
 }

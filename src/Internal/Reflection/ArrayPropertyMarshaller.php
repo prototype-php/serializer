@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -50,6 +52,16 @@ final class ArrayPropertyMarshaller implements PropertyMarshaller
      */
     public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): iterable
     {
+        if ($this->marshaller->labels()[Labels::packed]) {
+            $buffer = $buffer->split($buffer->consumeVarUint());
+
+            while (!$buffer->isEmpty()) {
+                yield $this->marshaller->deserializeValue($buffer, $deserializer, $tag);
+            }
+
+            return;
+        }
+
         yield $this->marshaller->deserializeValue($buffer, $deserializer, $tag);
     }
 
@@ -58,30 +70,52 @@ final class ArrayPropertyMarshaller implements PropertyMarshaller
      */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
+        $arrayBuffer = $buffer->clone();
+
+        $isPacked = $this->marshaller->labels()[Labels::packed];
+
         foreach ($value as $item) {
-            $tag->encode($buffer);
-            $this->marshaller->serializeValue($buffer, $serializer, $item, $tag);
+            if (!$isPacked) {
+                $tag->encode($arrayBuffer);
+            }
+
+            $this->marshaller->serializeValue($arrayBuffer, $serializer, $item, $tag);
+        }
+
+        if (!$arrayBuffer->isEmpty()) {
+            if ($isPacked) {
+                $tag->encode($buffer);
+                $buffer
+                    ->writeVarUint($arrayBuffer->count())
+                ;
+            }
+
+            $buffer->write($arrayBuffer->reset());
         }
     }
 
     /**
      * {@inheritdoc}
      */
-    public function default(): iterable
+    public function matchValue(mixed $value): bool
     {
-        return [];
+        return \is_array($value) && array_is_list($value);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function isEmpty(mixed $value): bool
+    public function labels(): TypedMap
     {
-        return [] === $value;
-    }
+        $labels = $this->marshaller->labels();
 
-    public function wireType(): Wire\Type
-    {
-        return $this->marshaller->wireType();
+        if ($labels[Labels::packed]) {
+            $labels = $labels->with(Labels::wireType, Wire\Type::BYTES);
+        }
+
+        return $labels
+            ->with(Labels::default, [])
+            ->with(Labels::isEmpty, static fn (array $values): bool => [] === $values)
+            ;
     }
 }

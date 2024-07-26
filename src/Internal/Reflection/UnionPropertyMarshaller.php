@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -39,10 +41,10 @@ use Kafkiansky\Prototype\Internal\Wire;
 final class UnionPropertyMarshaller implements PropertyMarshaller
 {
     /**
-     * @param array<positive-int, PropertyMarshaller<T>> $deserializers
+     * @param array<positive-int, PropertyMarshaller<T>> $marshallers
      */
     public function __construct(
-        private readonly array $deserializers,
+        private readonly array $marshallers,
     ) {}
 
     /**
@@ -50,7 +52,7 @@ final class UnionPropertyMarshaller implements PropertyMarshaller
      */
     public function deserializeValue(Binary\Buffer $buffer, Deserializer $deserializer, Wire\Tag $tag): mixed
     {
-        return $this->deserializers[$tag->num]->deserializeValue(
+        return $this->marshallers[$tag->num]->deserializeValue(
             $buffer,
             $deserializer,
             $tag,
@@ -62,26 +64,24 @@ final class UnionPropertyMarshaller implements PropertyMarshaller
      */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
+        if ($this->marshallers[$tag->num]->matchValue($value)) {
+            $this->marshallers[$tag->num]->serializeValue($buffer, $serializer, $value, $tag);
+        }
     }
 
     /**
      * {@inheritdoc}
      */
-    public function default(): mixed
-    {
-        return null;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function isEmpty(mixed $value): bool
+    public function matchValue(mixed $value): bool
     {
         return false;
     }
 
-    public function wireType(): Wire\Type
+    /**
+     * {@inheritdoc}
+     */
+    public function labels(): TypedMap
     {
-        return Wire\Type::BYTES;
+        return Labels::new(Wire\Type::BYTES);
     }
 }

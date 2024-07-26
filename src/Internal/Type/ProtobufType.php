@@ -37,7 +37,6 @@ use Typhoon\Type\TypeVisitor;
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  * @template-implements Type<TypeSerializer>
- * @psalm-immutable
  */
 enum ProtobufType: string implements Type, CustomTypeResolver
 {
@@ -97,7 +96,7 @@ enum ProtobufType: string implements Type, CustomTypeResolver
      */
     public function accept(TypeVisitor $visitor): mixed
     {
-        /** @psalm-suppress ImpureMethodCall, InvalidArgument */
+        /** @psalm-suppress InvalidArgument */
         return match ($this) {
             self::int32,
             self::int64,
@@ -120,8 +119,8 @@ enum ProtobufType: string implements Type, CustomTypeResolver
     /**
      * {@inheritdoc}
      */
-    public function resolveCustomType(string $name, array $typeArguments, TypeContext $context): ?Type
+    public function resolveCustomType(string $unresolvedName, array $typeArguments, TypeContext $context): ?Type
     {
-        return self::tryFrom($name);
+        return self::tryFrom($unresolvedName);
     }
 }

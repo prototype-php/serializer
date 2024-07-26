@@ -33,7 +33,6 @@ use Kafkiansky\Prototype\PrototypeException;
 use Typhoon\Reflection\TyphoonReflector;
 
 /**
- * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  */
@@ -41,10 +40,13 @@ final class ProtobufMarshaller implements
     Reflection\Serializer,
     Reflection\Deserializer
 {
+    private readonly Reflection\ProtobufReflector $protobufReflector;
+
     public function __construct(
         private readonly TyphoonReflector $classReflector,
-        private readonly Reflection\ProtobufReflector $protobufReflector = new Reflection\ProtobufReflector(),
-    ) {}
+    ) {
+        $this->protobufReflector = new Reflection\ProtobufReflector();
+    }
 
     /**
      * @template T of object
@@ -59,15 +61,24 @@ final class ProtobufMarshaller implements
 
         $properties = $this->protobufReflector->propertySerializers($class);
 
-        foreach ($properties as $num => $property) {
-            /** @psalm-suppress MixedAssignment It is ok here. */
-            $propertyValue = $property->value($message);
+        /** @psalm-var \WeakMap<\ReflectionProperty, bool> $serialized */
+        $serialized = new \WeakMap();
 
-            if ($property->isNotEmpty($propertyValue)) {
-                $tag = new Tag($num, $property->protobufType());
-                $property->encode($propertyBuffer = $buffer->clone(), $this, $tag, $propertyValue);
+        foreach ($properties as $num => $propertySerializer) {
+            if ($serialized[$propertySerializer->property] ?? false) {
+                continue;
+            }
+
+            /** @psalm-suppress MixedAssignment It is ok here. */
+            $propertyValue = $propertySerializer->value($message);
+
+            if ($propertySerializer->isNotEmpty($propertyValue)) {
+                $tag = new Tag($num, $propertySerializer->wireType());
+                $propertySerializer->encode($propertyBuffer = $buffer->clone(), $this, $tag, $propertyValue);
 
                 if (!$propertyBuffer->isEmpty()) {
+                    $serialized[$propertySerializer->property] = true;
+
                     if (!is_iterable($propertyValue)) {
                         $tag->encode($buffer);
                     }
@@ -90,7 +101,10 @@ final class ProtobufMarshaller implements
     {
         $class = $this->classReflector->reflectClass($messageType);
 
-        $object = $class->toNativeReflection()->newInstanceWithoutConstructor();
+        $object = $class
+            ->toNativeReflection()
+            ->newInstanceWithoutConstructor()
+        ;
 
         $properties = $this->protobufReflector->propertyDeserializers($class);
 
@@ -107,23 +121,25 @@ final class ProtobufMarshaller implements
                 continue;
             }
 
-            $property = $properties[$tag->num];
-            $values[$property] ??= new ValueContext();
+            $propertyDeserializer = $properties[$tag->num];
+            $values[$propertyDeserializer] ??= new ValueContext();
             /** @psalm-suppress MixedArgument */
-            $values[$property]->setValue($property->readValue($buffer, $this, $tag));
+            $values[$propertyDeserializer]->setValue($propertyDeserializer->readValue($buffer, $this, $tag));
         }
 
-        foreach ($values as $property => $propertyValue) {
-            $property->setValue($object, $propertyValue->getValue());
+        foreach ($values as $propertyDeserializer => $propertyValue) {
+            $propertyDeserializer->setValue($object, $propertyValue->getValue());
         }
 
         // Additional cycle to set default values.
         // We could do it in one loop, but we have unions that refer to the same `\ReflectionProperty`,
         // and if the required unit variant serialized in the protobuf is not the first one in the schema,
         // we will set it to a default value (which is null), which we cannot change later for `readonly` properties.
-        foreach ($properties as $property) {
-            if (!$property->isInitialized($object)) {
-                $property->setValue($object, $property->default());
+        // We also use `setDefault` to set nullable fields to null instead of the default value,
+        // so that we can distinguish between a real value and no value.
+        foreach ($properties as $propertyDeserializer) {
+            if (!$propertyDeserializer->isInitialized($object)) {
+                $propertyDeserializer->setDefault($object, $propertyDeserializer->default());
             }
         }
 

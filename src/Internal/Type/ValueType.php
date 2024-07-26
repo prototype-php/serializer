@@ -31,9 +31,11 @@ use Kafkiansky\Binary;
 use Kafkiansky\Prototype\Exception\PropertyNumberIsInvalid;
 use Kafkiansky\Prototype\Exception\TypeWasNotExpected;
 use Kafkiansky\Prototype\Exception\ValueIsNotSerializable;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Tag;
 use Kafkiansky\Prototype\Internal\Wire\Type;
 use Kafkiansky\Prototype\PrototypeException;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -151,17 +153,11 @@ final class ValueType implements TypeSerializer
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function default(): array
+    public function labels(): TypedMap
     {
-        return [];
-    }
-
-    public function wireType(): Type
-    {
-        return Type::BYTES;
+        return Labels::new(Type::BYTES)
+            ->with(Labels::default, [])
+            ;
     }
 
     /**

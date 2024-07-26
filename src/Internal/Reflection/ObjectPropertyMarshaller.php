@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -76,21 +78,16 @@ final class ObjectPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): mixed
+    public function matchValue(mixed $value): bool
     {
-        return null;
+        return $value instanceof $this->messageType;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function isEmpty(mixed $value): bool
+    public function labels(): TypedMap
     {
-        return false;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return Wire\Type::BYTES;
+        return Labels::new(Wire\Type::BYTES);
     }
 }

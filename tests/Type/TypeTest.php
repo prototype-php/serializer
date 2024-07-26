@@ -57,94 +57,61 @@ use PHPUnit\Framework\TestCase;
 final class TypeTest extends TestCase
 {
     /**
-     * @return iterable<array-key, array{callable(Buffer): void, TypeSerializer, mixed}>
+     * @return iterable<array-key, array{TypeSerializer, mixed}>
      */
     public static function fixtures(): iterable
     {
         yield 'true' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeVarUint(1);
-            },
             new BoolType(),
             true,
         ];
 
         yield 'false' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeVarUint(0);
-            },
             new BoolType(),
             false,
         ];
 
         yield 'varuint' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeVarUint(100);
-            },
             new VaruintType(),
             100,
         ];
 
         yield 'varint' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeVarInt(-1024);
-            },
             new VarintType(),
             -1024,
         ];
 
         yield 'float' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeFloat(2.5);
-            },
             new FloatType(),
             2.5,
         ];
 
         yield 'double' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeDouble(10.25);
-            },
             new DoubleType(),
             10.25,
         ];
 
         yield 'string' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeVarUint(\strlen('String'))->write('String');
-            },
             new StringType(),
             'String',
         ];
 
         yield 'fixed32' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeUint32(200);
-            },
             new FixedUint32Type(),
             200,
         ];
 
         yield 'sfixed32' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeInt32(-200);
-            },
             new FixedInt32Type(),
             -200,
         ];
 
         yield 'fixed64' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeUint64(2048);
-            },
             new FixedUint64Type(),
             2048,
         ];
 
         yield 'sfixed64' => [
-            static function (Buffer $buffer): void {
-                $buffer->writeInt64(-2048);
-            },
             new FixedInt64Type(),
             -2048,
         ];
@@ -152,14 +119,14 @@ final class TypeTest extends TestCase
 
     /**
      * @template T
-     * @param callable(Buffer): void $writeToBuffer
+     * @param T $value
      * @param TypeSerializer<T> $type
      */
     #[DataProvider('fixtures')]
-    public function testTypeRead(callable $writeToBuffer, TypeSerializer $type, mixed $value): void
+    public function testTypeRead(TypeSerializer $type, mixed $value): void
     {
         $buffer = Buffer::empty(Endianness::little());
-        $writeToBuffer($buffer);
+        $type->writeTo($buffer, $value);
         self::assertSame($value, $type->readFrom($buffer));
         self::assertTrue($buffer->isEmpty());
     }

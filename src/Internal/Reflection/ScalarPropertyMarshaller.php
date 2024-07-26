@@ -28,8 +28,11 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
+use Kafkiansky\Prototype\Internal\Type\ProtobufType;
 use Kafkiansky\Prototype\Internal\Type\TypeSerializer;
 use Kafkiansky\Prototype\Internal\Wire;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -57,34 +60,37 @@ final class ScalarPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function default(): mixed
-    {
-        return $this->type->default();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
         $this->type->writeTo($buffer, $value);
     }
 
+    public function matchValue(mixed $value): bool
+    {
+        $schemaType = $this->type->labels()[Labels::schemaType];
+
+        return match ($schemaType) {
+            ProtobufType::string,
+            ProtobufType::bytes  => \is_string($value),
+            ProtobufType::bool   => \is_bool($value),
+            ProtobufType::float,
+            ProtobufType::double => \is_float($value),
+            default              => \is_int($value),
+        };
+    }
+
     /**
      * {@inheritdoc}
      */
-    public function isEmpty(mixed $value): bool
+    public function labels(): TypedMap
     {
-        /** @psalm-suppress DocblockTypeContradiction */
-        return 0 === $value
-            || 0.0 === $value
-            || false === $value
-            || '' === $value
+        return $this->type
+            ->labels()
+            ->with(Labels::isEmpty, static fn (mixed $value): bool => 0 === $value
+                || 0.0 === $value
+                || false === $value
+                || '' === $value,
+            )
             ;
-    }
-
-    public function wireType(): Wire\Type
-    {
-        return $this->type->wireType();
     }
 }

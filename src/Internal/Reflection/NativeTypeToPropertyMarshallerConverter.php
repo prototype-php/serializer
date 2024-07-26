@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
+use Kafkiansky\Prototype\Exception\TypeIsNotSupported;
 use Kafkiansky\Prototype\Internal\Type\BoolType;
 use Kafkiansky\Prototype\Internal\Type\NativeTypeToProtobufTypeConverter;
 use Kafkiansky\Prototype\PrototypeException;
@@ -65,12 +66,11 @@ final class NativeTypeToPropertyMarshallerConverter extends DefaultTypeVisitor
         /** @psalm-suppress MixedArgumentTypeCoercion */
         return match (true) {
             \count($elements) > 0 => new ArrayShapePropertyMarshaller(
-                    array_merge(
-                        ...array_map(
-                        function (int|string $name, ShapeElement $element): array {
-                            /** @var array<non-empty-string, PropertyMarshaller<mixed>> */
-                            return [(string) $name => $element->type->accept($this)];
-                        },
+                array_merge(
+                    ...array_map(
+                        fn (int|string $name, ShapeElement $element): array => /** @var array<non-empty-string, PropertyMarshaller<mixed>> */ [
+                            (string) $name => $element->type->accept($this),
+                        ],
                         array_keys($elements),
                         $elements,
                     ),
@@ -90,9 +90,16 @@ final class NativeTypeToPropertyMarshallerConverter extends DefaultTypeVisitor
     public function namedObject(Type $type, NamedClassId $classId, array $typeArguments): PropertyMarshaller
     {
         try {
-            return new ScalarPropertyMarshaller($this->nativeTypeToProtobufTypeConverter->namedObject($type, $classId, $typeArguments));
-        } catch (PrototypeException|\ReflectionException) {
-            return typeStringToPropertyMarshaller($classId->name);
+            return new ScalarPropertyMarshaller($type->accept($this->nativeTypeToProtobufTypeConverter));
+        } catch (\Throwable) {
+            /** @psalm-suppress ArgumentTypeCoercion */
+            return match (true) {
+                enum_exists($classId->name) => new EnumPropertyMarshaller($classId->name),
+                instanceOfDateTime($classId->name) => new DateTimePropertyMarshaller($classId->name),
+                isClassOf($classId->name, \DateInterval::class) => new DateIntervalPropertyMarshaller(),
+                class_exists($classId->name) => new ObjectPropertyMarshaller($classId->name),
+                default => throw new TypeIsNotSupported($classId->name),
+            };
         }
     }
 

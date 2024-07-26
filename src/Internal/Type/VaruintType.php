@@ -28,7 +28,9 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 use Kafkiansky\Binary;
+use Kafkiansky\Prototype\Internal\Label\Labels;
 use Kafkiansky\Prototype\Internal\Wire\Type;
+use Typhoon\TypedMap\TypedMap;
 
 /**
  * @internal
@@ -56,16 +58,12 @@ final class VaruintType implements TypeSerializer
         $buffer->writeVarUint($value);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function default(): float
+    public function labels(): TypedMap
     {
-        return 0;
-    }
-
-    public function wireType(): Type
-    {
-        return Type::VARINT;
+        return Labels::new(Type::VARINT)
+            ->with(Labels::default, 0)
+            ->with(Labels::packed, true)
+            ->with(Labels::schemaType, ProtobufType::uint64)
+            ;
     }
 }
