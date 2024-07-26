@@ -70,23 +70,22 @@ final class EnumPropertyMarshaller implements PropertyMarshaller
     /**
      * {@inheritdoc}
      */
-    public function labels(): TypedMap
-    {
-        return Labels::new($this->type->labels()[Labels::type])
-            ->with(Labels::default, $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName))
-            ->with(Labels::packed, true)
-            ->with(Labels::isEmpty, static fn (\BackedEnum $enum): bool => 0 === $enum->value)
-            ;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
     {
         /** @var int<0, max> $variant */
         $variant = $value->value;
 
         $this->type->writeTo($buffer, $variant);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function labels(): TypedMap
+    {
+        return $this->type->labels()
+            ->with(Labels::default, $this->enumName::tryFrom(0) ?: throw new EnumDoesNotContainZeroVariant($this->enumName))
+            ->with(Labels::isEmpty, static fn (\BackedEnum $enum): bool => 0 === $enum->value)
+            ;
     }
 }

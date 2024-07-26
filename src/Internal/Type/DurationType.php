@@ -28,7 +28,6 @@ declare(strict_types=1);
 namespace Kafkiansky\Prototype\Internal\Type;
 
 /**
- * @api
  * @internal
  * @psalm-internal Kafkiansky\Prototype
  */

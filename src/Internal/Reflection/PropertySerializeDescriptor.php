@@ -34,7 +34,6 @@ use Kafkiansky\Prototype\Internal\Wire\Type;
 use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @api
  * @internal
  * @template T
  * @psalm-internal Kafkiansky\Prototype

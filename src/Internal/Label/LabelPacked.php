@@ -27,7 +27,6 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Label;
 
-use Typhoon\TypedMap\Key;
 use Typhoon\TypedMap\OptionalKey;
 use Typhoon\TypedMap\TypedMap;
 

@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 namespace Kafkiansky\Prototype\Internal\Reflection;
 
+use Kafkiansky\Prototype\Exception\TypeIsNotSupported;
 use Kafkiansky\Prototype\Internal\Type\BoolType;
 use Kafkiansky\Prototype\Internal\Type\NativeTypeToProtobufTypeConverter;
 use Kafkiansky\Prototype\PrototypeException;
@@ -91,7 +92,14 @@ final class NativeTypeToPropertyMarshallerConverter extends DefaultTypeVisitor
         try {
             return new ScalarPropertyMarshaller($type->accept($this->nativeTypeToProtobufTypeConverter));
         } catch (\Throwable) {
-            return typeStringToPropertyMarshaller($classId->name);
+            /** @psalm-suppress ArgumentTypeCoercion */
+            return match (true) {
+                enum_exists($classId->name) => new EnumPropertyMarshaller($classId->name),
+                instanceOfDateTime($classId->name) => new DateTimePropertyMarshaller($classId->name),
+                isClassOf($classId->name, \DateInterval::class) => new DateIntervalPropertyMarshaller(),
+                class_exists($classId->name) => new ObjectPropertyMarshaller($classId->name),
+                default => throw new TypeIsNotSupported($classId->name),
+            };
         }
     }
 

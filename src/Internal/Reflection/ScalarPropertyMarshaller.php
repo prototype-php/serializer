@@ -56,6 +56,17 @@ final class ScalarPropertyMarshaller implements PropertyMarshaller
         return $this->type->readFrom($buffer);
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
+    {
+        $this->type->writeTo($buffer, $value);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function labels(): TypedMap
     {
         return $this->type
@@ -66,13 +77,5 @@ final class ScalarPropertyMarshaller implements PropertyMarshaller
                 || '' === $value,
             )
             ;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function serializeValue(Binary\Buffer $buffer, Serializer $serializer, mixed $value, Wire\Tag $tag): void
-    {
-        $this->type->writeTo($buffer, $value);
     }
 }

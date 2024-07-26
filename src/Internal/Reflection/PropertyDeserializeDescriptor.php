@@ -33,7 +33,6 @@ use Kafkiansky\Prototype\Internal\Wire\Tag;
 use Kafkiansky\Prototype\PrototypeException;
 
 /**
- * @api
  * @internal
  * @template-covariant T
  * @psalm-internal Kafkiansky\Prototype

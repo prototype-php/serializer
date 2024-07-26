@@ -92,7 +92,10 @@ final class ProtobufMarshaller implements
     {
         $class = $this->classReflector->reflectClass($messageType);
 
-        $object = $class->toNativeReflection()->newInstanceWithoutConstructor();
+        $object = $class
+            ->toNativeReflection()
+            ->newInstanceWithoutConstructor()
+        ;
 
         $properties = $this->protobufReflector->propertyDeserializers($class);
 
