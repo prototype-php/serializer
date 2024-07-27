@@ -41,12 +41,6 @@ function isClassOf(string $class, string ...$of): bool
                 return true;
             }
         }
-    } elseif (\count($implements = class_implements($class)) > 0) {
-        foreach ($of as $it) {
-            if (\in_array($it, $implements, strict: true)) {
-                return true;
-            }
-        }
     }
 
     return false;
