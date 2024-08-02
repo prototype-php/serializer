@@ -27,8 +27,8 @@ declare(strict_types=1);
 
 namespace Prototype\Serializer\Internal\Reflection;
 
+use Prototype\Byte;
 use Prototype\Serializer\PrototypeException;
-use Prototype\Serializer\Byte;
 
 /**
  * @internal
@@ -42,6 +42,7 @@ interface Deserializer
      * @return T
      * @throws \ReflectionException
      * @throws PrototypeException
+     * @throws Byte\ByteException
      */
     public function deserialize(string $messageType, Byte\Reader $reader): object;
 }
